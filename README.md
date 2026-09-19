@@ -9,6 +9,19 @@ Este repositório contém:
 
 Também implementado (M1, **testado só com mocks**): API/webhook do WhatsApp, worker e agendador, orquestrador (LLM só nas pontas), guarda de números, permissões por `Principal`, escritas no HubSpot com recibo/Desfazer/confirmação, alertas, resumo matinal, views `gold`/`serving`. Ver `docs/go-live.md` para o que depende das suas contas (HubSpot, Meta, LLM, Supabase).
 
+### O Observatório (harness agêntico, ADR 0003)
+
+| Membro | Função | Ferramentas |
+|---|---|---|
+| **Orion** | Coordenador: analisa o pedido, monta o plano (≤ 3 passos) e devolve uma resposta só | — |
+| **Vega** | Analista de Metas | `get_kpis`, `get_quota_status` |
+| **Altair** | Gerente de Pipeline | `get_pipeline_summary`, `get_deal`, `list_deals_needing_action` |
+| **Lyra** | Escriba do CRM (recibo + Desfazer) | `add_note`, `create_task`, `propose_deal_update`, `undo_last` |
+| **Aurora** | Rotina e Alertas | `get_morning_brief` |
+| **Argus** | Auditor de Confiança | `get_data_quality` |
+
+O LLM só *propõe* o plano; o código valida (allowlist por especialista, no máximo 1 escrita e por último). Endereçamento direto: “Vega, como estou na meta?”. `uv run omnidata team` lista a equipe; `team export` gera `web/src/lib/team.json` (um teste garante a sincronia).
+
 Ainda não implementado: motivo de perda (M2), previsão/modelo (M2), coach e transcrições (M3), dbt (ADR 0002).
 
 ## Back-end (M0)

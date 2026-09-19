@@ -104,3 +104,23 @@ def tpl_brief(d: dict[str, Any]) -> str:
 def tpl_deal(d: dict[str, Any]) -> str:
     flags = ", ".join(FLAG_TEXT.get(f, f) for f in d["flags"]) or "sem alertas"
     return f"*{d['name']}* — {d['stage']}, {brl(d['amount'])}. {d['days_in_stage']} dias na etapa; {flags}."
+
+
+def tpl_quality(d: dict[str, Any]) -> str:
+    if not d.get("open_deals") and not d.get("lost_deals"):
+        return NO_DATA
+    out = f"{d['open_deals']} negócios abertos; {pct(d.get('pct_next_step'), 0)} com próximo passo."
+    if d.get("lost_deals"):
+        out += f" Perdas em 24 meses: {d['lost_deals']}, {pct(d.get('pct_lost_with_reason'), 0)} com motivo estruturado"
+        out += " (meta: 80%). Análises por motivo ainda não são confiáveis." if (d.get("pct_lost_with_reason") or 0) < 0.8 else "."
+    return out
+
+
+def tpl_team(members: list[tuple[str, str, str]]) -> str:
+    lines = [f"• *{n}* — {t}. {g}" for n, t, g in members]
+    return "Este é o *Observatório*, a sua equipe:\n" + "\n".join(lines) + "\nChame pelo nome, como “Vega, como estou na meta?”, ou fale comigo que eu direciono."
+
+
+NOT_MINE = "Isso não é comigo. Fale com *{other}* ({title}): “{other}, {hint}”."
+NICK_OK = "Combinado, {nick}. É assim que a equipe te chama daqui em diante."
+AGENT_INTRO = "{name} aqui, {title}. {tagline} Exemplo: “{example}”."

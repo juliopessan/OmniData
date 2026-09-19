@@ -29,6 +29,20 @@ app.add_typer(db_app, name="db")
 app.add_typer(user_app, name="user")
 app.add_typer(quota_app, name="quota")
 app.add_typer(serve_app, name="serve")
+
+
+@app.command("team")
+def team_cmd(action: str = typer.Argument("list", help="list | export")) -> None:
+    """The Observatório: who does what. `export` prints JSON for the web UI."""
+    import json
+
+    from .agents.team import TEAM, TEAM_NAME, export
+    if action == "export":
+        typer.echo(json.dumps(export(), ensure_ascii=False, indent=2))
+        return
+    typer.echo(TEAM_NAME)
+    for a in TEAM.values():
+        typer.echo(f"  {a.name:<7} {a.title:<24} tools: {', '.join(a.tools) or '— (planeja e coordena)'}")
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(message)s")
 
 

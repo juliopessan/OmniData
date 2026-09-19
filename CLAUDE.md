@@ -3,6 +3,7 @@ Purpose: WhatsApp sales assistant on a HubSpot-fed Postgres store. Source of tru
 
 ## Layout
 - `src/omnidata/` Python backend (M0: ingestion, audit, seed, backup). `supabase/migrations/` forward-only SQL.
+- Harness (ADR 0003): `agents/team.py` (roster + tool allowlists = source of truth; `omnidata team export > web/src/lib/team.json`), `agents/orion.py` (plan validation).
 - Bot (M1): `bot/` (orchestrator, actions, repo, gateway, webhook), `llm/`, `alerts/`, `api/`, `jobs/worker.py`; gold/serving are SQL views (ADR 0002).
 - `web/` Next.js front-end (landing, auth, dashboard) with the Ledger design system; synthetic data only.
 
@@ -18,7 +19,7 @@ Purpose: WhatsApp sales assistant on a HubSpot-fed Postgres store. Source of tru
 ## Rules
 1. Plan first for any task touching more than 3 files; small commits referencing FR-IDs.
 2. Never assume HubSpot property names; run `omnidata audit properties` and use discovered names (config/hubspot_properties.yaml).
-3. The LLM never does arithmetic, never writes SQL, never receives raw PII. Numbers shown to users come from tool JSON.
+3. Agents: the LLM proposes plans, code validates them (allowlist, <=3 steps, <=1 write, last). Never let a specialist call a tool outside its list. The LLM never does arithmetic, never writes SQL, never receives raw PII. Numbers shown to users come from tool JSON.
 4. All CRM writes go through pending_action + audit_log with idempotency keys; high-risk writes need confirmation.
 5. Bot-facing text lives only in bot/strings_ptbr.py.
 6. Migrations are forward-only. Never edit an applied migration.

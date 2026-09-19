@@ -98,3 +98,14 @@ def get_deal_scoped(conn: Conn, p: Principal, deal_id: str) -> dict[str, Any] | 
                     [*params, deal_id])
         r = cur.fetchone()
     return dict(r) if r else None
+
+
+def data_quality(conn: Conn, p: Principal) -> dict[str, Any]:
+    clause, params = p.owner_clause()
+    with conn.cursor() as cur:
+        cur.execute(f"select coalesce(sum(open_deals),0) o, coalesce(sum(open_with_next_step),0) n, coalesce(sum(lost_deals),0) l, "
+                    f"coalesce(sum(lost_with_reason),0) r from serving.v_data_quality where {clause}", params)
+        r = cur.fetchone()
+    o, n, lost, rs = (int(r[k]) for k in ("o", "n", "l", "r"))
+    return {"open_deals": o, "pct_next_step": (n / o) if o else None, "lost_deals": lost,
+            "pct_lost_with_reason": (rs / lost) if lost else None, "reason_target": 0.8}

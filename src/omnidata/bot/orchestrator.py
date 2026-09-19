@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import json
 import logging
+import re
+import uuid
 from dataclasses import dataclass
 from datetime import UTC, date, datetime
 from typing import Any
@@ -11,6 +13,8 @@ from typing import Any
 import psycopg
 from psycopg.types.json import Jsonb
 
+from ..agents import team as T
+from ..agents.orion import ORION_SYSTEM, Step, plan_schema, single_step, validate_plan
 from ..config import Settings
 from ..crm.hubspot.writeback import HubSpotWriter
 from ..llm import prompts
@@ -200,7 +204,7 @@ async def _handle_reply_id(conn: Conn, deps: Deps, p: Principal, rid: str) -> Re
         if not deal:
             return Reply(S.NO_DATA)
         if state == "pick" and ctx.get("tool"):
-            return await _run_write_with_deal(conn, deps, p, ctx["tool"], ctx["args"], deal["hs_deal_id"])
+            return _sign(T.agent_for_tool(ctx["tool"]), await _run_write_with_deal(conn, deps, p, ctx["tool"], ctx["args"], deal["hs_deal_id"]))
         return Reply(S.tpl_deal(_deal_view(deal)))
     if parts[0] == "act" and len(parts) == 3:
         verb, ident = parts[1], parts[2]
@@ -260,23 +264,97 @@ async def _handle_text(conn: Conn, deps: Deps, p: Principal, text: str) -> Reply
         _set_state(conn, p, "idle")
         return await actions.edit_receipt(conn, deps.writer, p, ctx["action_id"], text)
 
-    tool, args = None, {}
+    return await _orion(conn, deps, p, text)
+
+
+def _menu() -> Reply:
+    return Reply(S.MENU_BODY, list_rows=[(f"menu:{k}", t, d) for k, t, d in S.MENU_ROWS], list_button=S.MENU_TITLE[:20])
+
+
+def _sign(agent: T.Agent, r: Reply) -> Reply:
+    r.text = f"*{agent.name}*: {r.text}"
+    return r
+
+
+_NICK = re.compile(r"^\s*me chama de\s+(.{1,30}?)\s*[.!]?\s*$", re.IGNORECASE)
+_TEAM_Q = re.compile(r"\b(equipe|quem (sao|são) (voces|vocês)|quem trabalha|observatorio|observatório)\b", re.IGNORECASE)
+
+
+async def _orion(conn: Conn, deps: Deps, p: Principal, text: str) -> Reply:
+    """Orion analyses the request and routes it to the specialists (ADR 0003). Falls back to keywords when there is no LLM."""
+    m = _NICK.match(text)
+    if m:  # 'me chama de Rê' (assessor-style preference by message)
+        nick = mask_pii(m.group(1)).strip()
+        with conn.cursor() as cur:
+            cur.execute("update app.app_user set display_name=%s where id=%s", (nick, p.user_id))
+        conn.commit()
+        return _sign(T.ORION, Reply(S.NICK_OK.format(nick=nick)))
+    forced: T.Agent | None = None
+    addr = T.parse_address(text)
+    if addr:
+        forced, text = addr
+        if not text or text.lower().strip("?!. ") in ("quem é você", "quem e voce", "oi", "olá", "ola"):
+            return _sign(forced, Reply(S.AGENT_INTRO.format(name=forced.name, title=forced.title, tagline=forced.tagline, example=forced.examples[0])))
+    if forced is None and _TEAM_Q.search(text):
+        return _sign(T.ORION, Reply(S.tpl_team([(a.name, a.title, a.tagline) for a in T.TEAM.values()])))
+
+    steps: list[Step] | None = None
     if deps.llm and not _over_budget(conn, p, deps.settings):
         try:
-            res = await deps.llm.route(prompts.ROUTER_SYSTEM, mask_pii(text), catalog.schemas())
-            _log_llm(conn, p.user_id, "router", res.usage)
-            if res.tool:
-                tool, args = res.tool.name, res.tool.arguments
+            res = await deps.llm.route(ORION_SYSTEM, mask_pii(text), [plan_schema()])
+            _log_llm(conn, p.user_id, "planner", res.usage)
+            if res.tool and res.tool.name == "plan":
+                steps = validate_plan(res.tool.arguments.get("steps"), forced)
+                if steps is None:
+                    _log_step(conn, p, "orion", "plan", "rejected", 0)  # invalid plan: never executed
+            elif res.tool and res.tool.name in T.TOOL_OWNER:  # single direct tool call (also accepted)
+                steps = validate_plan([{"agent": T.TOOL_OWNER[res.tool.name], "tool": res.tool.name, "args": res.tool.arguments}], forced)
             elif res.text and "FORA_DO_ESCOPO" in res.text:
-                return Reply(S.OUT_OF_SCOPE)
+                return _sign(T.ORION, Reply(S.OUT_OF_SCOPE))
         except LlmError:
             audit(conn, p.user_id, "llm_down", {})
             conn.commit()
-    if tool is None:
-        tool = keyword_route(text)  # degraded mode (FR-BOT-7)
-    if tool is None:
-        return Reply(S.MENU_BODY, list_rows=[(f"menu:{k}", t, d) for k, t, d in S.MENU_ROWS], list_button=S.MENU_TITLE[:20])
-    return await _run_tool(conn, deps, p, tool, args, original_text=text)
+    if steps is None:
+        tool = keyword_route(text)  # degraded mode (FR-BOT-7): one specialist, no LLM
+        if tool is None:
+            return _menu()
+        if forced and T.TOOL_OWNER[tool] != forced.key:
+            owner = T.TEAM[T.TOOL_OWNER[tool]]
+            return _sign(forced, Reply(S.NOT_MINE.format(other=owner.name, title=owner.title, hint=owner.examples[0].split(", ")[-1].strip("“”\""))))
+        steps = single_step(tool)
+    return await run_plan(conn, deps, p, steps, text)
+
+
+def _log_step(conn: Conn, p: Principal, agent: str, tool: str, status: str, ms: int, run_id: str | None = None, n: int = 0) -> None:
+    with conn.cursor() as cur:
+        cur.execute("insert into app.agent_step (run_id, step_no, user_id, agent, tool, status, latency_ms) values (%s,%s,%s,%s,%s,%s,%s)",
+                    (run_id or str(uuid.uuid4()), n, p.user_id, agent, tool, status, ms))
+    conn.commit()
+
+
+async def run_plan(conn: Conn, deps: Deps, p: Principal, steps: list[Step], original_text: str = "") -> Reply:
+    """Sequential, bounded execution: each step is one specialist calling one allowed tool. Orion merges into ONE reply."""
+    import time
+    import uuid
+    run_id = str(uuid.uuid4())
+    parts: list[str] = []
+    last = Reply("")
+    for i, st in enumerate(steps):
+        t0 = time.monotonic()
+        try:
+            r = await _run_tool(conn, deps, p, st.tool, st.args, original_text)
+            status = "ok"
+        except Exception:
+            conn.rollback()
+            _log_step(conn, p, st.agent, st.tool, "failed", int((time.monotonic() - t0) * 1000), run_id, i)
+            raise
+        _log_step(conn, p, st.agent, st.tool, "ok", int((time.monotonic() - t0) * 1000), run_id, i)
+        _ = status
+        if r.list_rows:  # a specialist needs the user to pick something: stop the plan here
+            return Reply("\n\n".join([*parts, r.text]), list_rows=r.list_rows, list_button=r.list_button)
+        parts.append(r.text)
+        last = r
+    return Reply("\n\n".join(parts), buttons=last.buttons)
 
 
 async def _free_text_confirmation(conn: Conn, deps: Deps, p: Principal, confirm: bool) -> Reply:
@@ -293,6 +371,11 @@ async def _free_text_confirmation(conn: Conn, deps: Deps, p: Principal, confirm:
 
 
 async def _run_tool(conn: Conn, deps: Deps, p: Principal, tool: str | None, args: dict[str, Any], original_text: str = "") -> Reply:
+    reply = await _run_tool_raw(conn, deps, p, tool, args, original_text)
+    return _sign(T.agent_for_tool(tool), reply) if tool and reply.text else reply
+
+
+async def _run_tool_raw(conn: Conn, deps: Deps, p: Principal, tool: str | None, args: dict[str, Any], original_text: str = "") -> Reply:
     if not tool:
         return Reply(S.NO_DATA)
     parsed = catalog.validate(tool, args)
@@ -304,7 +387,7 @@ async def _run_tool(conn: Conn, deps: Deps, p: Principal, tool: str | None, args
         data, template = _read(conn, p, tool, a, today)
         if data is None:
             return Reply(S.NO_MATCH_DEAL.format(q=a.get("query", "")))
-        return Reply(await _narrate(conn, deps, p, data, template))
+        return Reply(await _narrate(conn, deps, p, data, template, T.agent_for_tool(tool)))
     if not deps.writer:
         return Reply(S.HUBSPOT_DOWN)
     if tool == "undo_last":
@@ -329,26 +412,29 @@ def _read(conn: Conn, p: Principal, tool: str, a: dict[str, Any], today: date): 
         d = {"name": p.display_name, "quota": repo.quota_status(conn, p, repo.month_start(today)),
              "attention": repo.deals_needing_action(conn, p, 5)}
         return d, S.tpl_brief
+    if tool == "get_data_quality":
+        return repo.data_quality(conn, p), S.tpl_quality
     if tool == "get_deal":
         found = repo.find_deals(conn, p, a["query"], 1)
         return (_deal_view(found[0]), S.tpl_deal) if found else (None, S.tpl_deal)
     return None, S.tpl_deal
 
 
-async def _narrate(conn: Conn, deps: Deps, p: Principal, data: dict[str, Any], template: Any) -> str:
+async def _narrate(conn: Conn, deps: Deps, p: Principal, data: dict[str, Any], template: Any, agent: T.Agent | None = None) -> str:
     """Narrator LLM sees tool JSON only; number guard decides whether its text may be sent (§11.3)."""
     fallback: str = template(data)
     if not deps.llm or _over_budget(conn, p, deps.settings):
         return fallback
     payload = json.dumps(data, default=str, ensure_ascii=False)
     try:
-        text, usage = await deps.llm.narrate(prompts.NARRATOR_SYSTEM, payload)
+        persona = f" Você é {agent.name}, {agent.title}. {agent.persona}" if agent else ""
+        text, usage = await deps.llm.narrate(prompts.NARRATOR_SYSTEM + persona, payload)
         _log_llm(conn, p.user_id, "narrator", usage)
     except LlmError:
         return fallback
     if text and len(text) <= 600 and numbers_ok(text, json.loads(payload)):
         return text
-    audit(conn, p.user_id, "number_guard_fallback", {})
+    audit(conn, p.user_id, "number_guard_fallback", {"agent": agent.key if agent else None})
     conn.commit()
     return fallback
 

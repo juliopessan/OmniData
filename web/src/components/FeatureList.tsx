@@ -5,6 +5,15 @@ import { Chat, type ChatMsg } from "./Chat";
 type Feature = { theme: string; title: string; body: string; msgs: ChatMsg[]; who: string };
 
 const FEATURES: Feature[] = [
+  { theme: "A equipe", title: "Um pedido com dois assuntos, uma resposta só.", body: "Orion divide o trabalho entre os especialistas e você recebe tudo numa mensagem, cada parte assinada por quem cuidou dela.", who: "Ana Souza", msgs: [
+    { me: true, text: "como estou na meta e anota na Acme que o CFO aprovou" },
+    { text: <><b>Vega</b>: Você está em <b>97,8%</b> da meta. Falta <b>R$ 9.000</b>.<br /><br /><b>Lyra</b>: Registrei ✅ <b>Nota</b> em <b>Acme – Renovação</b>.</>, buttons: ["Editar", "Desfazer"] } ] },
+  { theme: "A equipe", title: "Chame pelo nome, como faria com uma pessoa.", body: "“Vega, ...” vai direto para a analista de metas. Se o assunto não for dela, ela diz quem cuida. Diga “me chama de Rê” e a equipe inteira passa a te chamar assim.", who: "Bruno Lima", msgs: [
+    { me: true, text: "Altair, como estou na meta?" },
+    { text: <><b>Altair</b>: Isso não é comigo. Fale com <b>Vega</b> (Analista de Metas): “Vega, como estou na meta?”.</> } ] },
+  { theme: "A equipe", title: "Um auditor que diz quando não dá para confiar.", body: "Argus mostra a cobertura de próximo passo e de motivo de perda, e avisa quando a amostra é pequena demais para comparar.", who: "Carla Mendes", msgs: [
+    { me: true, text: "Argus, posso confiar nesse win rate?" },
+    { text: <><b>Argus</b>: 12 negócios abertos; 92% com próximo passo. Perdas em 24 meses: 5, 40% com motivo estruturado (meta: 80%). Análises por motivo ainda não são confiáveis.</> } ] },
   { theme: "Perguntas", title: "“Como estou na meta?” Resposta em segundos.", body: "Atingimento, gap, dias restantes e cobertura de pipeline vs. necessária. Se a amostra é pequena, o assistente avisa em vez de comparar.", who: "Ana Souza", msgs: [
     { me: true, text: "como to na meta?" },
     { text: <>Você está em <b>91,0%</b> da meta de setembro. Faltam <b>R$ 9.000</b> e 11 dias. Cobertura: 3,2x (necessária: 1,7x).</> } ] },

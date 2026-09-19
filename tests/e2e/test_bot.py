@@ -111,7 +111,7 @@ async def test_faithful_narration_is_sent(world):
     text = f"Sua meta é R$ {q['quota_amount']:,.0f}".replace(",", ".")
     llm = FakeLlm(tool=ToolCall("get_quota_status", {}), narration=text)
     out = await say(conn, deps(gw, w, s, llm), REP_A, "meta?")
-    assert out["body"] == text
+    assert out["body"] == f"*Vega*: {text}"  # signed by the specialist who owns the tool
 
 
 async def _p(conn, phone):

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { SiteHeader, SiteFooter } from "@/components/SiteChrome";
 import { Eyebrow, Bar, Fig, Measured, Flag } from "@/components/Ledger";
 import { Chat } from "@/components/Chat";
+import { TeamGrid } from "@/components/TeamGrid";
 import { SpinVerb } from "@/components/SpinVerb";
 import { computeMetrics, brl, pct, pad2 } from "@/lib/metrics";
 
@@ -54,6 +55,15 @@ export default function Home() {
                 <div key={n}><span className="n">{n}</span><h3 className="h3">{t}</h3><p className="body">{b}</p></div>
               ))}
             </div>
+          </div>
+        </section>
+
+        <section className="section" id="equipe">
+          <div className="wrap stack" style={{ gap: 32 }}>
+            <div className="stack"><Eyebrow>O Observatório</Eyebrow>
+              <h2 className="h2">Uma equipe de assessores, uma conversa só.</h2>
+              <p className="lede">Orion lê o pedido e divide o trabalho. Cada especialista responde assinando o próprio nome, e você recebe tudo numa mensagem.</p></div>
+            <TeamGrid />
           </div>
         </section>
 

@@ -50,12 +50,13 @@ TOOLS: dict[str, tuple[type[BaseModel], str]] = {
     "get_deal": (GetDeal, "Detalhes de um negócio pelo nome."),
     "list_deals_needing_action": (ListNeedingAction, "Negócios que mais pedem atenção agora."),
     "get_morning_brief": (NoArgs, "Resumo do dia: meta e negócios prioritários."),
+    "get_data_quality": (NoArgs, "Qualidade dos dados: próximo passo, motivos de perda e confiança das análises."),
     "add_note": (AddNote, "Registrar uma nota em um negócio."),
     "create_task": (CreateTask, "Criar uma tarefa em um negócio."),
     "propose_deal_update": (ProposeDealUpdate, "Propor alteração de etapa, data de fechamento ou valor (exige confirmação)."),
     "undo_last": (UndoLast, "Desfazer a última ação registrada (até 24h)."),
 }
-READ_TOOLS = {"get_kpis", "get_quota_status", "get_pipeline_summary", "get_deal", "list_deals_needing_action", "get_morning_brief"}
+READ_TOOLS = {"get_kpis", "get_quota_status", "get_pipeline_summary", "get_deal", "list_deals_needing_action", "get_morning_brief", "get_data_quality"}
 
 
 def schemas() -> list[dict[str, Any]]:
