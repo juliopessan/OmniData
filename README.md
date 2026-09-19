@@ -1,6 +1,14 @@
 # OmniData
 
-Inteligência de vendas no WhatsApp, alimentada pelo HubSpot — a primeira fatia de uma visão 360° do cliente.
+**Seu time não abre o CRM. Mas responde o WhatsApp.**
+
+<p align="center"><img src="docs/assets/hero.png" alt="Landing do OmniData: o hero com o livro-razão calculado a partir de dados sintéticos" width="900"></p>
+
+O OmniData leva a inteligência do HubSpot para o WhatsApp do vendedor. Quem cuida dele é o **Observatório**, uma equipe de seis assessores de IA
+(Orion, Vega, Altair, Lyra, Aurora e Argus): o Orion lê o pedido e divide o trabalho, e cada especialista responde assinando a própria parte.
+Número na tela vem do SQL, nunca do modelo. É a primeira fatia de uma visão 360° do cliente.
+
+<sub>Screenshot gerado por `scripts/screenshot-hero.sh` (Chrome headless sobre o build de produção). Os números do hero são calculados de dados sintéticos.</sub>
 
 Este repositório contém:
 

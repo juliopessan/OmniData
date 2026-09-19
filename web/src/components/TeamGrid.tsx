@@ -6,7 +6,7 @@ export function TeamGrid({ withTools = false }: { withTools?: boolean }) {
     <div className="team">
       {TEAM.members.map((m) => (
         <article key={m.key} className="member">
-          <div className="mono-tile" aria-hidden="true">{m.name[0]}</div>
+          <div className="mono-tile" aria-hidden="true">{m.name.slice(0, 2)}</div>
           <div className="stack" style={{ gap: 6 }}>
             <h3 className="h3">{m.name}</h3>
             <span className="tag" style={{ alignSelf: "flex-start" }}>{m.title}</span>
