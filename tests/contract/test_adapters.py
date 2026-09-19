@@ -7,7 +7,7 @@ from omnidata.bot.gateway import WhatsAppCloudGateway
 from omnidata.crm.hubspot.client import HubSpotClient
 from omnidata.crm.hubspot.writeback import NOTE_TO_DEAL, HubSpotWriter
 from omnidata.llm.anthropic import AnthropicClient
-from omnidata.llm.azure_openai import AzureOpenAIClient
+from omnidata.llm.openai_chat import OpenAIChatClient
 
 
 async def test_whatsapp_send_shapes():
@@ -37,16 +37,23 @@ async def test_whatsapp_error_raises_without_leaking_token():
     assert "SECRET" not in str(e.value)
 
 
-async def test_azure_openai_route_parses_function_call_and_usage():
+async def test_openai_chat_route_parses_function_call_and_usage():
     def h(req):
-        assert "/deployments/router/chat/completions" in str(req.url) and req.headers["api-key"] == "k"
+        assert str(req.url) == "https://api.openai.com/v1/chat/completions" and req.headers["authorization"] == "Bearer k"
         body = json.loads(req.content)
-        assert body["tools"][0]["type"] == "function" and body["temperature"] == 0
+        assert body["model"] == "router-m" and body["tools"][0]["type"] == "function"
         return httpx.Response(200, json={"choices": [{"message": {"tool_calls": [{"function": {"name": "get_kpis", "arguments": '{"period":"last_month"}'}}]}}],
                                          "usage": {"prompt_tokens": 12, "completion_tokens": 3}})
-    c = AzureOpenAIClient("https://x.openai.azure.com", "k", "router", "narr", transport=httpx.MockTransport(h))
+    c = OpenAIChatClient("k", "router-m", "narr-m", transport=httpx.MockTransport(h))
     res = await c.route("sys", "meus números", [{"name": "get_kpis", "description": "d", "parameters": {"type": "object"}}])
     assert res.tool and res.tool.name == "get_kpis" and res.tool.arguments == {"period": "last_month"} and res.usage.input_tokens == 12
+
+
+async def test_openai_base_url_is_configurable():
+    seen = []
+    c = OpenAIChatClient("k", "r", "n", base_url="https://gateway.example/v1/", transport=httpx.MockTransport(
+        lambda req: (seen.append(str(req.url)), httpx.Response(200, json={"choices": [{"message": {"content": "oi"}}]}))[1]))
+    assert (await c.narrate("s", "{}"))[0] == "oi" and seen == ["https://gateway.example/v1/chat/completions"]
 
 
 async def test_anthropic_route_parses_tool_use():

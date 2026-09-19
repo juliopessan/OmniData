@@ -20,6 +20,7 @@ from ..crm.hubspot.writeback import HubSpotWriter
 from ..llm import prompts
 from ..llm.base import LlmClient, LlmError, Usage
 from ..llm.guard import numbers_ok
+from ..llm.transcribe import TranscribeError, Transcriber
 from ..security.pii_masking import mask_pii
 from ..security.principal import Principal, resolve_by_phone
 from . import actions, repo
@@ -40,6 +41,7 @@ class Deps:
     writer: HubSpotWriter | None
     llm: LlmClient | None
     settings: Settings
+    transcriber: Transcriber | None = None
     today: date | None = None
 
 
@@ -151,25 +153,48 @@ async def handle(conn: Conn, deps: Deps, msg: dict[str, Any]) -> None:
         reply = await _handle_reply_id(conn, deps, p, body["reply_id"])
     elif kind in ("text", "audio"):
         text = body.get("text", "")
+        heard = ""
         if kind == "audio":
-            text = await _transcribe(deps, body)
-            if not text:
-                await send(conn, deps, phone, p.user_id, Reply("Não consegui entender o áudio. Pode escrever ou tentar de novo?"))
+            text, err = await _transcribe(conn, deps, p, body)
+            if err:
+                await send(conn, deps, phone, p.user_id, Reply(err))
                 return
+            heard = S.HEARD.format(t=text[:200])  # show what was understood: transcription can be wrong, writes are risky
         reply = await _handle_text(conn, deps, p, text)
+        if heard:
+            reply.text = f"{heard}\n\n{reply.text}"
     else:
         reply = Reply(S.MENU_BODY, list_rows=[(f"menu:{k}", t, d) for k, t, d in S.MENU_ROWS], list_button=S.MENU_TITLE[:20])
     await send(conn, deps, phone, p.user_id, reply)
 
 
-async def _transcribe(deps: Deps, body: dict[str, Any]) -> str:
-    if not deps.llm:
-        return ""
+async def _transcribe(conn: Conn, deps: Deps, p: Principal, body: dict[str, Any]) -> tuple[str, str | None]:
+    """Voice note -> text. Returns (text, None) or ("", user-facing error). Cost is logged per user (app.llm_call)."""
+    if not deps.transcriber:
+        return "", S.AUDIO_FAIL
+    with conn.cursor() as cur:
+        cur.execute("select coalesce(sum(cost_usd),0) c from app.llm_call where user_id=%s and purpose='transcribe' "
+                    "and created_at >= date_trunc('day', now())", (p.user_id,))
+        spent = float(cur.fetchone()["c"])
+    conn.commit()
+    if spent >= deps.settings.transcribe_daily_budget_usd:
+        return "", S.AUDIO_BUDGET
     try:
         audio, mime = await deps.gateway.download_media(body["media_id"])
-        return await deps.llm.transcribe(audio, mime)
-    except (LlmError, GatewayError):
-        return ""
+        t = await deps.transcriber.transcribe(audio, mime)
+    except TranscribeError as exc:
+        audit(conn, p.user_id, "transcribe_failed", {"code": exc.code})
+        conn.commit()
+        if exc.code == "too_long":
+            return "", S.AUDIO_TOO_LONG.format(max=deps.settings.transcribe_max_seconds)
+        return "", S.AUDIO_TOO_BIG if exc.code == "too_big" else S.AUDIO_FAIL
+    except GatewayError:
+        return "", S.AUDIO_FAIL
+    with conn.cursor() as cur:
+        cur.execute("insert into app.llm_call (user_id, purpose, provider, model, cost_usd, latency_ms) values (%s,'transcribe','openai',%s,%s,%s)",
+                    (p.user_id, t.model, t.cost_usd, t.latency_ms))
+    conn.commit()
+    return (t.text, None) if t.text else ("", S.AUDIO_EMPTY)
 
 
 async def _onboarding_or_refuse(conn: Conn, deps: Deps, phone: str, body: dict[str, Any]) -> None:

@@ -4,7 +4,7 @@ Purpose: WhatsApp sales assistant on a HubSpot-fed Postgres store. Source of tru
 ## Layout
 - `src/omnidata/` Python backend (M0: ingestion, audit, seed, backup). `supabase/migrations/` forward-only SQL.
 - Harness (ADR 0003): `agents/team.py` (roster + tool allowlists = source of truth; `omnidata team export > web/src/lib/team.json`), `agents/orion.py` (plan validation).
-- Bot (M1): `bot/` (orchestrator, actions, repo, gateway, webhook), `llm/`, `alerts/`, `api/`, `jobs/worker.py`; gold/serving are SQL views (ADR 0002).
+- Bot (M1): `bot/` (orchestrator, actions, repo, gateway, webhook), `llm/` (chat: anthropic|openai; `transcribe.py`: OpenAI speech-to-text, ADR 0004; no Azure), `alerts/`, `api/`, `jobs/worker.py`; gold/serving are SQL views (ADR 0002).
 - `web/` Next.js front-end (landing, auth, dashboard) with the Ledger design system; synthetic data only.
 
 ## Commands

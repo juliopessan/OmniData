@@ -20,8 +20,9 @@ from ..db import advisory_lock, connect
 from ..ingest import jobs as ingest_jobs
 from ..ingest.backup import backup
 from ..llm.anthropic import AnthropicClient
-from ..llm.azure_openai import AzureOpenAIClient
 from ..llm.base import LlmClient
+from ..llm.openai_chat import OpenAIChatClient
+from ..llm.transcribe import OpenAITranscriber, Transcriber
 
 log = logging.getLogger("omnidata.worker")
 
@@ -29,10 +30,15 @@ log = logging.getLogger("omnidata.worker")
 def build_llm(s: Settings) -> LlmClient | None:
     if s.llm_provider == "anthropic" and s.anthropic_api_key:
         return AnthropicClient(s.anthropic_api_key)
-    if s.llm_provider == "azure_openai" and s.azure_openai_endpoint and s.azure_openai_api_key:
-        return AzureOpenAIClient(s.azure_openai_endpoint, s.azure_openai_api_key, s.azure_openai_deployment_router,
-                                 s.azure_openai_deployment_narrator, s.azure_openai_deployment_transcribe)
+    if s.llm_provider == "openai" and s.openai_api_key and s.openai_model_router and s.openai_model_narrator:
+        return OpenAIChatClient(s.openai_api_key, s.openai_model_router, s.openai_model_narrator, s.openai_base_url)
     return None  # degraded (keyword/menu) mode
+
+
+def build_transcriber(s: Settings) -> Transcriber | None:
+    if not s.openai_api_key:
+        return None  # audio then gets a polite 'write instead' reply
+    return OpenAITranscriber(s.openai_api_key, s.transcribe_model, s.transcribe_fallback_model, s.openai_base_url, s.transcribe_max_seconds)
 
 
 async def _locked(key: int, fn):  # type: ignore[no-untyped-def]
@@ -49,7 +55,7 @@ async def run(s: Settings | None = None) -> None:
     s = s or get_settings()
     gw = WhatsAppCloudGateway(s.whatsapp_phone_number_id, s.whatsapp_access_token)
     hs = HubSpotClient(s.hubspot_access_token, rps=s.hubspot_rps, search_rps=s.hubspot_search_rps) if s.hubspot_access_token else None
-    deps = Deps(gateway=gw, writer=HubSpotWriter(hs) if hs else None, llm=build_llm(s), settings=s)
+    deps = Deps(gateway=gw, writer=HubSpotWriter(hs) if hs else None, llm=build_llm(s), settings=s, transcriber=build_transcriber(s))
 
     async def ingest_and_alert() -> None:
         async def job(conn):  # type: ignore[no-untyped-def]

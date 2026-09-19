@@ -272,11 +272,56 @@ async def test_rate_limit(world):
     assert "Muitas mensagens" in gw.last["body"]
 
 
-async def test_audio_is_transcribed_then_routed(world):
+async def test_audio_is_transcribed_echoed_routed_and_costed(world):  # FR-BOT-5
+    from ..fakes import FakeTranscriber
     conn, gw, w, s, _ = world
     inbound(conn, "wamid.aud", REP_A, "audio", media_id="m1", mime="audio/ogg")
-    await process_next(conn, deps(gw, w, s, FakeLlm()))
-    assert "meta" in gw.last["body"].lower()
+    d = Deps(gateway=gw, writer=w, llm=None, settings=s, transcriber=FakeTranscriber("como estou na meta"))
+    await process_next(conn, d)
+    assert gw.last["body"].startswith("🎤 Entendi: “como estou na meta”") and "*Vega*:" in gw.last["body"]
+    with conn.cursor() as cur:
+        cur.execute("select provider, model, cost_usd from app.llm_call where purpose='transcribe'")
+        r = cur.fetchone()
+    assert r["provider"] == "openai" and r["model"] == "gpt-transcribe" and float(r["cost_usd"]) == 0.0009  # 12 s * $0.0045/min
+
+
+async def test_audio_write_still_needs_confirmation_after_transcription(world):  # transcripts can be wrong: high-risk stays gated
+    from ..fakes import FakeTranscriber
+    conn, gw, w, s, _ = world
+    deal = await _own_deal(conn)
+    inbound(conn, "wamid.aud2", REP_A, "audio", media_id="m1")
+    d = Deps(gateway=gw, writer=w, llm=FakeLlm(tool=ToolCall("propose_deal_update", {"deal": deal["hs_deal_id"], "field": "amount", "value": "99000"})),
+             settings=s, transcriber=FakeTranscriber("muda o valor pra noventa e nove mil"))
+    await process_next(conn, d)
+    assert [b[1] for b in gw.last["buttons"]] == ["Confirmar", "Ajustar", "Cancelar"] and w.updates == []
+
+
+@pytest.mark.parametrize("err,expect", [("too_long", "longo demais"), ("too_big", "grande demais"), ("api", "Não consegui entender o áudio"), ("decode", "Não consegui entender o áudio")])
+async def test_audio_failures_get_a_helpful_reply_and_no_action(world, err, expect):
+    from ..fakes import FakeTranscriber
+    conn, gw, w, s, _ = world
+    inbound(conn, "wamid.a3", REP_A, "audio", media_id="m1")
+    await process_next(conn, Deps(gateway=gw, writer=w, llm=None, settings=s, transcriber=FakeTranscriber(error=err)))
+    assert expect in gw.last["body"] and w.created == [] and w.updates == []
+
+
+async def test_audio_without_transcriber_or_empty_or_over_budget(world):
+    from ..fakes import FakeTranscriber
+    conn, gw, w, s, _ = world
+    inbound(conn, "wamid.a4", REP_A, "audio", media_id="m1")
+    await process_next(conn, Deps(gateway=gw, writer=w, llm=None, settings=s, transcriber=None))
+    assert "Não consegui entender o áudio" in gw.last["body"]
+    inbound(conn, "wamid.a5", REP_A, "audio", media_id="m1")
+    await process_next(conn, Deps(gateway=gw, writer=w, llm=None, settings=s, transcriber=FakeTranscriber(text="")))
+    assert "Não ouvi nada" in gw.last["body"]
+    with conn.cursor() as cur:  # daily transcription budget
+        uid = resolve_by_phone(conn, REP_A).user_id
+        cur.execute("insert into app.llm_call (user_id, purpose, provider, model, cost_usd) values (%s,'transcribe','openai','gpt-transcribe',0.5)", (uid,))
+    conn.commit()
+    ft = FakeTranscriber()
+    inbound(conn, "wamid.a6", REP_A, "audio", media_id="m1")
+    await process_next(conn, Deps(gateway=gw, writer=w, llm=None, settings=s, transcriber=ft))
+    assert "limite de transcrição" in gw.last["body"] and ft.calls == 0  # no API call once over budget
 
 
 # ---------------- webhook ----------------

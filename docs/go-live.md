@@ -15,9 +15,12 @@ Code is done and tested against mocks. **Nothing below has been exercised agains
 3. Submit the templates in `docs/templates.md` (utility category). Approval lead time is the critical path.
 4. Invite a test user: `omnidata user invite --phone +55... --owner <hs_owner_id> --name Ana`; reply **Aceito** on WhatsApp.
 
-## 3. LLM (OPEN-7)
-Set `LLM_PROVIDER` and either the Azure OpenAI vars (router, narrator, transcribe deployments) or `ANTHROPIC_API_KEY`. Without a key the bot runs in
-degraded keyword/menu mode. Audio needs the Azure transcribe deployment.
+## 3. LLM and voice notes (OPEN-7, ADR 0004)
+- Chat: `LLM_PROVIDER=anthropic` + `ANTHROPIC_API_KEY` (default), or `openai` + `OPENAI_API_KEY`, `OPENAI_MODEL_ROUTER`, `OPENAI_MODEL_NARRATOR`.
+  Without a key the bot runs in degraded keyword/menu mode. **No Azure.**
+- Voice notes: set `OPENAI_API_KEY` (transcription works with either chat provider). Default model `gpt-transcribe`. ffmpeg must be installed (the Docker image has it).
+- Put keys in your secret manager / Vercel env, **never in chats, commits or `.env` files that are committed**. A key pasted in a chat should be treated as leaked and rotated.
+- Before the pilot: `uv run python scripts/bench_transcribe.py samples/` on 20+ real WhatsApp voice notes.
 
 ## 4. Database and hosting (D3, OPEN-10)
 - Use **Supabase Pro** before real PII (free tier: no backups, pauses when idle). `DATABASE_URL` = transaction pooler, `DATABASE_URL_DIRECT` = direct.

@@ -46,6 +46,3 @@ class AnthropicClient:
         d, usage = await self._post({"model": self._model, "max_tokens": 400, "system": system,
                                      "messages": [{"role": "user", "content": payload_json}]})
         return "".join(b.get("text", "") for b in d.get("content", []) if b.get("type") == "text"), usage
-
-    async def transcribe(self, audio: bytes, mime: str) -> str:
-        raise LlmError("Anthropic has no transcription endpoint; configure Azure OpenAI for audio")

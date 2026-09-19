@@ -6,6 +6,7 @@ from typing import Any
 
 from omnidata.crm.hubspot.client import HubSpotError
 from omnidata.llm.base import LlmError, RouterResult, ToolCall, Usage
+from omnidata.llm.transcribe import TranscribeError, Transcript
 
 
 class FakeGateway:
@@ -81,5 +82,13 @@ class FakeLlm:
             raise LlmError("down")
         return self.narration or "", Usage("fake", "fake", 10, 5)
 
-    async def transcribe(self, audio: bytes, mime: str) -> str:
-        return "como estou na meta"
+
+class FakeTranscriber:
+    def __init__(self, text: str = "como estou na meta", error: str | None = None, seconds: float = 12.0, model: str = "gpt-transcribe") -> None:
+        self.text, self.error, self.seconds, self.model, self.calls = text, error, seconds, model, 0
+
+    async def transcribe(self, audio: bytes, mime: str) -> Transcript:
+        self.calls += 1
+        if self.error:
+            raise TranscribeError(self.error)
+        return Transcript(self.text, self.model, self.seconds, round(0.0045 * self.seconds / 60, 6), 300)

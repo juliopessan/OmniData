@@ -30,6 +30,8 @@ Também implementado (M1, **testado só com mocks**): API/webhook do WhatsApp, w
 
 O LLM só *propõe* o plano; o código valida (allowlist por especialista, no máximo 1 escrita e por último). Endereçamento direto: “Vega, como estou na meta?”. `uv run omnidata team` lista a equipe; `team export` gera `web/src/lib/team.json` (um teste garante a sincronia).
 
+**Áudios do WhatsApp:** transcritos com `gpt-transcribe` (OpenAI, $0.0045/min; fallback `gpt-4o-mini-transcribe`), decodificados para WAV via ffmpeg, com limite de duração e orçamento diário por usuário. O bot mostra “Entendi: …” antes de responder e escritas de risco continuam pedindo confirmação. Sem Azure no projeto (ADR 0004).
+
 Ainda não implementado: motivo de perda (M2), previsão/modelo (M2), coach e transcrições (M3), dbt (ADR 0002).
 
 ## Back-end (M0)
