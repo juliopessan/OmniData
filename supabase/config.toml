@@ -1,0 +1,7 @@
+project_id = "omnidata"
+[api]
+port = 54321
+schemas = []   # nothing exposed through PostgREST: only the backend (service role) reads data
+[db]
+port = 54322
+major_version = 17

@@ -1,0 +1,4 @@
+{"total": 3, "results": [
+  {"id": "101", "properties": {"dealname": "Acme", "hs_lastmodifieddate": "2026-08-01T10:00:00.000Z"}},
+  {"id": "102", "properties": {"dealname": "Beta", "hs_lastmodifieddate": "2026-08-02T10:00:00.000Z"}}],
+ "paging": {"next": {"after": "2"}}}

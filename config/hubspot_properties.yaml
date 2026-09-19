@@ -1,0 +1,42 @@
+# EXPECTED HubSpot property names (PRD Appendix B). Not verified: run `omnidata audit properties`
+# and correct anything reported as missing before relying on it (CLAUDE.md rule 2).
+deals:
+  - dealname
+  - amount
+  - deal_currency_code
+  - pipeline
+  - dealstage
+  - hubspot_owner_id
+  - createdate
+  - closedate
+  - hs_lastmodifieddate
+  - hs_is_closed_won
+  - closed_lost_reason
+  - closed_won_reason
+  - hs_deal_stage_probability
+  - hs_next_step
+  - notes_last_contacted
+  - notes_next_activity_date
+  - num_associated_contacts
+  - hs_analytics_source
+contacts: [email, jobtitle, lifecyclestage, hubspot_owner_id, lastmodifieddate]
+companies: [name, industry, numberofemployees, hs_lastmodifieddate]
+calls: [hs_timestamp, hs_call_duration, hs_call_direction, hs_call_disposition, hs_call_body, hs_call_recording_url, hs_call_transcription_id, hubspot_owner_id, hs_lastmodifieddate]
+meetings: [hs_timestamp, hs_meeting_start_time, hs_meeting_end_time, hs_meeting_outcome, hs_meeting_body, hubspot_owner_id, hs_lastmodifieddate]
+emails: [hs_timestamp, hs_email_direction, hubspot_owner_id, hs_lastmodifieddate]
+notes: [hs_timestamp, hs_note_body, hubspot_owner_id, hs_lastmodifieddate]
+tasks: [hs_timestamp, hs_task_status, hs_task_subject, hubspot_owner_id, hs_lastmodifieddate]
+
+# Property that carries "last modified" per object type (used for incremental windows).
+modified_property:
+  deals: hs_lastmodifieddate
+  contacts: lastmodifieddate
+  companies: hs_lastmodifieddate
+  calls: hs_lastmodifieddate
+  meetings: hs_lastmodifieddate
+  emails: hs_lastmodifieddate
+  notes: hs_lastmodifieddate
+  tasks: hs_lastmodifieddate
+
+# Deal properties whose history is tracked (FR-ING-2).
+history_properties: [dealstage, amount, closedate, hubspot_owner_id]

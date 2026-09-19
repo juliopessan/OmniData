@@ -1,0 +1,4 @@
+{"results": [{"id": "default", "label": "Vendas", "stages": [
+  {"id": "s1", "label": "Qualificação", "displayOrder": 0, "metadata": {"isClosed": "false", "probability": "0.2"}},
+  {"id": "won", "label": "Ganho", "displayOrder": 1, "metadata": {"isClosed": "true", "probability": "1.0"}},
+  {"id": "lost", "label": "Perdido", "displayOrder": 2, "metadata": {"isClosed": "true", "probability": "0.0"}}]}]}

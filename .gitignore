@@ -1,5 +1,9 @@
-node_modules
-.next
-next-env.d.ts
-*.tsbuildinfo
-.env*
+.venv/
+__pycache__/
+*.pyc
+.env
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+backups/
+reports/
