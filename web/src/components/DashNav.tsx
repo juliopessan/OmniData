@@ -4,7 +4,7 @@ import { usePathname } from "next/navigation";
 
 const items = [
   ["/dashboard", "Visão geral"], ["/dashboard/negocios", "Negócios"], ["/dashboard/alertas", "Alertas"],
-  ["/dashboard/equipe", "Equipe"], ["/dashboard/whatsapp", "WhatsApp"], ["/dashboard/qualidade", "Qualidade dos dados"],
+  ["/dashboard/equipe", "Equipe"], ["/dashboard/datasets", "Datasets"], ["/dashboard/whatsapp", "WhatsApp"], ["/dashboard/qualidade", "Qualidade dos dados"],
 ] as const;
 
 export function DashNav() {

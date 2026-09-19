@@ -1,11 +1,12 @@
 // Dados sintéticos (equivalente ao `omnidata dev seed`). Nenhum PII real.
-export type Stage = "Qualificação" | "Proposta" | "Negociação" | "Ganho" | "Perdido";
+export type Stage = string; // "Ganho" / "Perdido" no exemplo; rótulos livres em dados enviados
 
 export interface Deal {
   id: string;
   name: string;
   owner: string;
   stage: Stage;
+  status?: "open" | "won" | "lost"; // se ausente, deduzido de Ganho/Perdido
   amount: number;
   daysInStage: number;
   nextStep: boolean;
@@ -14,7 +15,7 @@ export interface Deal {
   reason?: string | null; // só para Perdido; null = sem motivo estruturado
 }
 
-export const STAGE_PROB: Record<Stage, number> = {
+export const STAGE_PROB: Record<string, number> = {
   Qualificação: 0.2,
   Proposta: 0.4,
   Negociação: 0.7,

@@ -1,0 +1,5 @@
+﻿ID do registro,Nome do negócio,Etapa do negócio,Valor,Data de fechamento,Proprietário do negócio,Próxima atividade,Associated Note
+1001,Acme – Renovação,Negociação,84000,2026-10-15,Ana Souza,2026-10-01 14:00,Cliente pediu ajuste de escopo.
+1002,Nuvem Sul – Novo,Qualificação,22000,2026-11-30,Bruno Lima,,
+1003,Kappa Retail,Fechado ganho,68000,2026-08-20,Ana Souza,,Contrato assinado.
+1004,Prisma,Fechado perdido,44000,2026-07-11,Bruno Lima,,Motivo da perda: Preço acima do orçamento aprovado.

@@ -229,3 +229,17 @@ td .sub { display: block; font-size: 12px; color: var(--ink-soft); }
 
 /* CTA final */
 .cta { background: var(--paper-deep); padding: 88px 0; }
+
+/* Upload de datasets */
+.dropzone { border: 1px dashed var(--ink-faint); padding: 40px 24px; display: flex; flex-direction: column; align-items: center; gap: 6px; text-align: center; cursor: pointer; background: transparent; transition: background .15s, border-color .15s; }
+.dropzone:hover, .dropzone.on { background: var(--paper-deep); border-color: var(--ink); }
+.dropzone b { font-weight: 800; letter-spacing: -0.01em; }
+.linkbtn { background: none; border: none; padding: 0; cursor: pointer; text-decoration: underline; color: var(--ink-soft); font: inherit; }
+.opts { display: flex; flex-direction: column; gap: 10px; color: var(--ink-soft); font-size: 13.5px; }
+.opts label { display: flex; gap: 10px; align-items: center; }
+.opts .field label { display: block; }
+.actions { display: flex; gap: 14px; flex-wrap: wrap; }
+
+/* Telas estreitas: o verbo girando no título não pode alargar a página */
+.main-head > * { min-width: 0; max-width: 100%; }
+.spinverb { flex-wrap: wrap; max-width: 100%; }
