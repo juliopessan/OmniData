@@ -17,7 +17,7 @@ def conn():
     except Exception:
         pytest.skip("no test Postgres available (set TEST_DATABASE_URL)")
     with c.cursor() as cur:
-        cur.execute("drop schema if exists bronze, silver, gold, serving, app cascade; "
+        cur.execute("drop schema if exists bronze, silver, gold, serving, app, airbyte cascade; "
                     "drop table if exists public._omnidata_migrations")
     c.commit()
     db.migrate(c)

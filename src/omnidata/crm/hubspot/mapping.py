@@ -14,6 +14,8 @@ def parse_ts(v: Any) -> datetime | None:
     """HubSpot returns ISO-8601 strings or epoch milliseconds (as str/int)."""
     if v in (None, ""):
         return None
+    if isinstance(v, datetime):
+        return v if v.tzinfo else v.replace(tzinfo=UTC)
     s = str(v)
     if s.lstrip("-").isdigit():
         return datetime.fromtimestamp(int(s) / 1000, tz=UTC)

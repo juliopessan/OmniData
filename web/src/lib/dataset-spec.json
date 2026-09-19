@@ -1,0 +1,305 @@
+{
+  "stageRanks": [
+    [
+      "qualific",
+      1
+    ],
+    [
+      "descoberta|discovery",
+      2
+    ],
+    [
+      "reuni|meeting",
+      3
+    ],
+    [
+      "apresent|demo|presentation",
+      4
+    ],
+    [
+      "propost|proposal",
+      5
+    ],
+    [
+      "negocia|negotiat",
+      6
+    ],
+    [
+      "contrat|contract|jurid|legal|assinat",
+      7
+    ]
+  ],
+  "won": "\\b(fechado ganho|closed won|ganho|ganha|won)\\b",
+  "lost": "\\b(fechado perdido|closed lost|perdido|perdida|lost)\\b",
+  "statusWords": {
+    "aberto": "open",
+    "open": "open",
+    "ganho": "won",
+    "won": "won",
+    "ganha": "won",
+    "perdido": "lost",
+    "lost": "lost",
+    "perdida": "lost"
+  },
+  "kinds": [
+    {
+      "key": "deals",
+      "title": "Negócios",
+      "description": "Exportação de negócios do CRM (HubSpot em pt-BR ou en). Vira silver.deal.",
+      "columns": [
+        {
+          "name": "id",
+          "required": true,
+          "stored": true,
+          "hint": "único por linha",
+          "aliases": [
+            "id",
+            "id do registro",
+            "record id",
+            "deal id",
+            "hs object id",
+            "id do negocio"
+          ]
+        },
+        {
+          "name": "name",
+          "required": true,
+          "stored": true,
+          "hint": "",
+          "aliases": [
+            "name",
+            "nome do negocio",
+            "deal name",
+            "dealname",
+            "nome",
+            "titulo",
+            "title"
+          ]
+        },
+        {
+          "name": "stage",
+          "required": true,
+          "stored": true,
+          "hint": "ganho/perdido saem do nome da etapa (ex.: Fechado ganho)",
+          "aliases": [
+            "stage",
+            "etapa do negocio",
+            "deal stage",
+            "dealstage",
+            "etapa",
+            "fase"
+          ]
+        },
+        {
+          "name": "amount",
+          "required": false,
+          "stored": true,
+          "hint": "",
+          "aliases": [
+            "amount",
+            "valor",
+            "amount",
+            "valor do negocio",
+            "value",
+            "montante"
+          ]
+        },
+        {
+          "name": "close_date",
+          "required": false,
+          "stored": true,
+          "hint": "",
+          "aliases": [
+            "close date",
+            "data de fechamento",
+            "close date",
+            "closedate",
+            "data prevista de fechamento"
+          ]
+        },
+        {
+          "name": "created_at",
+          "required": false,
+          "stored": true,
+          "hint": "",
+          "aliases": [
+            "created at",
+            "data de criacao",
+            "create date",
+            "createdate",
+            "created at"
+          ]
+        },
+        {
+          "name": "owner",
+          "required": false,
+          "stored": true,
+          "hint": "nome ou id do dono; nomes já existentes no HubSpot são reaproveitados",
+          "aliases": [
+            "owner",
+            "proprietario do negocio",
+            "deal owner",
+            "hubspot owner id",
+            "proprietario",
+            "owner",
+            "responsavel",
+            "vendedor"
+          ]
+        },
+        {
+          "name": "status",
+          "required": false,
+          "stored": true,
+          "hint": "opcional: aberto/ganho/perdido (sobrescreve a etapa)",
+          "aliases": [
+            "status",
+            "status",
+            "situacao"
+          ]
+        },
+        {
+          "name": "next_activity",
+          "required": false,
+          "stored": true,
+          "hint": "",
+          "aliases": [
+            "next activity",
+            "proxima atividade",
+            "next activity date",
+            "notes next activity date"
+          ]
+        },
+        {
+          "name": "lost_reason",
+          "required": false,
+          "stored": true,
+          "hint": "se ausente, tenta extrair de “Motivo da perda: …” nas notas",
+          "aliases": [
+            "lost reason",
+            "motivo da perda",
+            "closed lost reason",
+            "closed lost reason",
+            "motivo de perda"
+          ]
+        },
+        {
+          "name": "notes",
+          "required": false,
+          "stored": true,
+          "hint": "",
+          "aliases": [
+            "notes",
+            "associated note",
+            "nota associada",
+            "notas",
+            "notes",
+            "anotacoes"
+          ]
+        },
+        {
+          "name": "note_ids",
+          "required": false,
+          "stored": true,
+          "hint": "",
+          "aliases": [
+            "note ids",
+            "associated note ids",
+            "ids das notas associadas",
+            "note ids"
+          ]
+        },
+        {
+          "name": "campaign",
+          "required": false,
+          "stored": true,
+          "hint": "",
+          "aliases": [
+            "campaign",
+            "campanha do ultimo agendamento na ferramenta de reunioes",
+            "campanha",
+            "campaign",
+            "fonte",
+            "source",
+            "origem"
+          ]
+        },
+        {
+          "name": "deal_score",
+          "required": false,
+          "stored": false,
+          "hint": "reconhecida mas não importada: é uma previsão do CRM, não um fato",
+          "aliases": [
+            "deal score",
+            "pontuacao do negocio",
+            "deal score",
+            "hs deal score"
+          ]
+        }
+      ]
+    },
+    {
+      "key": "quotas",
+      "title": "Metas",
+      "description": "Meta por vendedor e período. Vira silver.quota.",
+      "columns": [
+        {
+          "name": "owner",
+          "required": true,
+          "stored": true,
+          "hint": "",
+          "aliases": [
+            "owner",
+            "proprietario",
+            "owner",
+            "vendedor",
+            "responsavel",
+            "hubspot owner id",
+            "owner id"
+          ]
+        },
+        {
+          "name": "period_start",
+          "required": true,
+          "stored": true,
+          "hint": "",
+          "aliases": [
+            "period start",
+            "inicio do periodo",
+            "period start",
+            "inicio",
+            "start",
+            "data inicio"
+          ]
+        },
+        {
+          "name": "period_end",
+          "required": true,
+          "stored": true,
+          "hint": "",
+          "aliases": [
+            "period end",
+            "fim do periodo",
+            "period end",
+            "fim",
+            "end",
+            "data fim"
+          ]
+        },
+        {
+          "name": "amount",
+          "required": true,
+          "stored": true,
+          "hint": "",
+          "aliases": [
+            "amount",
+            "meta",
+            "quota",
+            "valor",
+            "amount",
+            "meta do periodo"
+          ]
+        }
+      ]
+    }
+  ]
+}

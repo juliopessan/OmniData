@@ -1,0 +1,41 @@
+# Connector layer: Airbyte (docs/airbyte.md, ADR 0006). Airbyte pulls from sources and lands tables in our Postgres;
+# OmniData then maps them into silver. Airbyte's own scheduler runs the syncs; `omnidata airbyte sync` can also trigger them.
+airbyte:
+  schema: airbyte            # destination schema configured in Airbyte's Postgres destination
+  hubspot:
+    connector: airbyte/source-hubspot 6.9.2      # version the mapping was verified against
+  connections: []            # optional, only for `omnidata airbyte sync`: [{name: hubspot, id: "<connection uuid>"}]
+
+# OTHER sources ("e outros"): map any landed table onto the canonical `deals` / `quotas` dataset (same importer as CSV upload).
+# Every entry is OFF until you inspect your landed table and fix `columns`. Column names below are TEMPLATES, not verified
+# against the real connectors, except where noted.
+generic:
+  - name: salesforce
+    enabled: false
+    table: airbyte.opportunity            # Salesforce source lands `Opportunity`; check the exact table name in your schema
+    kind: deals
+    replace: true                         # snapshot semantics: each run replaces this source's rows
+    import_notes: false
+    columns:                              # canonical column: your landed column
+      id: Id
+      name: Name
+      stage: StageName                    # "Closed Won"/"Closed Lost" are recognised by label
+      amount: Amount
+      close_date: CloseDate
+      created_at: CreatedDate
+      owner: OwnerId                      # an id; map it to a name/HubSpot owner id before importing if you want people-level views
+  - name: pipedrive
+    enabled: false
+    table: airbyte.deals
+    kind: deals
+    replace: true
+    import_notes: false
+    status_map: {open: open, won: won, lost: lost}
+    columns:
+      id: id
+      name: title
+      stage: stage_name                   # Pipedrive lands stage_id; join or land a name column first
+      amount: value
+      close_date: expected_close_date
+      status: status
+      owner: owner_name

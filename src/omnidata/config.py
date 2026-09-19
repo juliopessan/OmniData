@@ -43,6 +43,15 @@ class Settings(BaseSettings):
     alert_quiet_end: str = "07:00"
     rate_limit_msgs_per_hour: int = 60
     user_daily_token_budget: int = 100_000
+    ingest_mode: str = "direct"    # direct (own HubSpot client) | airbyte (Airbyte lands tables, we map them)
+    airbyte_url: str = ""          # https://api.airbyte.com (Cloud) or your self-managed base URL
+    airbyte_client_id: str = ""
+    airbyte_client_secret: str = ""
+    airbyte_schema: str = "airbyte"
+    admin_api_token: str = ""      # protects /api/datasets*; empty = uploads disabled
+    cors_origins: str = ""         # comma-separated origins allowed to call the API from a browser
+    dataset_max_bytes: int = 10_000_000
+    dataset_max_rows: int = 100_000
 
     @property
     def direct_url(self) -> str:

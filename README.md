@@ -22,6 +22,8 @@ Número na tela vem do SQL, nunca do modelo. É a primeira fatia de uma visão 3
 | Bot no WhatsApp (webhook, fila, orquestrador, escritas com recibo/Desfazer, alertas, resumo matinal) | Pronto; **testado só com simulação** |
 | Observatório (Orion planeja, especialistas executam) | Pronto; falta medir a acurácia do planejador com frases reais |
 | Áudios do WhatsApp (transcrição) | Pronto; **ainda não rodou na API real da OpenAI** |
+| Upload de datasets (CSV/XLSX de negócios e metas): página, API e CLI | Pronto; testado com uma exportação real do HubSpot (1000 negócios) e no navegador |
+| Airbyte como camada de conectores (HubSpot + outras fontes por mapeamento) | Pronto no código; **nunca rodou contra um Airbyte real** ([docs/airbyte.md](docs/airbyte.md)) |
 | Motivo de perda, previsão, coach (M2/M3), dbt | Não implementado (ADR 0002) |
 
 Nada acima foi exercitado contra HubSpot, Meta ou LLM reais: veja **[docs/go-live.md](docs/go-live.md)** para o que depende das suas contas.
@@ -41,6 +43,11 @@ O LLM só *propõe* o plano; o código valida (allowlist por especialista, no m�
 
 **Áudios do WhatsApp:** transcritos com `gpt-transcribe` (OpenAI, US$ 0,0045/min; fallback `gpt-4o-mini-transcribe`), decodificados para WAV via ffmpeg, com limite de 180 s e orçamento diário por usuário. O bot mostra “Entendi: …” antes de responder, e escritas de risco continuam pedindo confirmação. Sem Azure no projeto (ADR 0004). Para escolher o modelo com seus áudios: `scripts/bench_transcribe.py`.
 
+## Dados de entrada
+
+- **Upload:** `/dashboard/datasets` (arrastar-e-soltar, prévia, relatório de erros por linha) ou `uv run omnidata dataset import arquivo.csv --kind deals --apply`. Reconhece a exportação do HubSpot em pt-BR, tira ganho/perdido da etapa e o motivo de perda das notas. Detalhes em [docs/datasets.md](docs/datasets.md).
+- **Airbyte:** HubSpot e outras fontes aterrissam no Postgres e o OmniData mapeia para o `silver` (`INGEST_MODE=airbyte`). O cliente próprio do HubSpot continua sendo o padrão e o único que escreve no CRM. Guia em [docs/airbyte.md](docs/airbyte.md).
+
 ## Estrutura
 
 ```
@@ -50,9 +57,11 @@ src/omnidata/
   bot/                    orquestrador, ações de escrita, repositórios com Principal, gateway WhatsApp, webhook
   llm/                    chat (anthropic | openai), transcrição, guarda de números
   crm/hubspot/            cliente resiliente, mapeamento, escrita
+  datasets/               upload: leitura CSV/XLSX, validação, importador
+  integrations/airbyte/   cliente da API, aterrissagem HubSpot, mapeamento de outras fontes
   ingest/  alerts/  api/  jobs/  security/
 supabase/migrations/      SQL forward-only (bronze, silver, app, gold, serving)
-docs/                     go-live.md, templates.md, adr/ (0001–0004)
+docs/                     go-live.md, datasets.md, airbyte.md, templates.md, adr/ (0001–0006)
 scripts/                  screenshot-hero.sh, bench_transcribe.py
 ```
 

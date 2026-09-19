@@ -59,7 +59,10 @@ async def run(s: Settings | None = None) -> None:
 
     async def ingest_and_alert() -> None:
         async def job(conn):  # type: ignore[no-untyped-def]
-            if hs:
+            if s.ingest_mode == "airbyte":  # Airbyte lands tables on its own schedule; we only map what is new
+                from ..integrations.airbyte.landing import ingest as airbyte_ingest
+                airbyte_ingest(conn, s.airbyte_schema)
+            elif hs:
                 await ingest_jobs.incremental(conn, hs)
             engine.evaluate(conn)
             await engine.dispatch(conn, gw, s)

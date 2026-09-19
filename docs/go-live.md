@@ -29,3 +29,7 @@ Code is done and tested against mocks. **Nothing below has been exercised agains
 
 ## 5. Before real reps (OPEN-6)
 Legal sign-off on LGPD basis/retention; import quotas: `omnidata quota import quotas.csv` (owner,period_start,period_end,amount).
+
+## 6. Dataset upload and Airbyte (optional)
+- Upload: set `ADMIN_API_TOKEN` (long random), `CORS_ORIGINS` (your site origin) and, in the web build, `NEXT_PUBLIC_API_URL`. Until login is real, the token is the only protection: keep it secret and add rate limiting at your proxy.
+- Airbyte: follow `docs/airbyte.md`. Not exercised against a real Airbyte yet: run one test sync and `omnidata airbyte ingest` and compare counts with HubSpot before switching `INGEST_MODE`.

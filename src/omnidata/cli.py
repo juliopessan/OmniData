@@ -11,6 +11,7 @@ import typer
 
 if TYPE_CHECKING:
     from .crm.hubspot.client import HubSpotClient
+    from .integrations.airbyte.client import AirbyteClient
 
 from .config import ROOT, get_settings
 
@@ -28,7 +29,137 @@ serve_app = typer.Typer(no_args_is_help=True, help="Run services")
 app.add_typer(db_app, name="db")
 app.add_typer(user_app, name="user")
 app.add_typer(quota_app, name="quota")
+dataset_app = typer.Typer(no_args_is_help=True, help="Dataset uploads (CSV/XLSX -> silver)")
 app.add_typer(serve_app, name="serve")
+airbyte_app = typer.Typer(no_args_is_help=True, help="Airbyte connector layer (docs/airbyte.md)")
+app.add_typer(dataset_app, name="dataset")
+app.add_typer(airbyte_app, name="airbyte")
+
+
+@dataset_app.command("import")
+def dataset_import(file: Path, kind: str = typer.Option("deals", help="deals | quotas"),
+                   apply: bool = typer.Option(False, "--apply", help="write to the database (default: validate only)"),
+                   allow_partial: bool = typer.Option(False, help="import valid rows even if some rows have errors"),
+                   replace: bool = typer.Option(False, help="deals: first delete everything imported before (ids starting with up:)"),
+                   no_notes: bool = typer.Option(False, help="deals: do not import note text"),
+                   stage_order: str = typer.Option("", help="comma-separated open stages, first to last (default: guessed from names)")) -> None:
+    """Validate (and with --apply, import) a CSV/XLSX. Exit code 2 when the file is rejected."""
+    import json
+
+    from .datasets.importer import ImportOptions, import_file
+    from .datasets.parse import UploadError
+    from .datasets.spec import KINDS
+    from .db import connect
+    if kind not in KINDS:
+        typer.echo(f"unknown kind: {kind}", err=True)
+        raise typer.Exit(2)
+    s = get_settings()
+    opts = ImportOptions(dry_run=not apply, allow_partial=allow_partial, replace=replace, import_notes=not no_notes,
+                         stage_order=[x.strip() for x in stage_order.split(",") if x.strip()] or None, uploaded_by="cli")
+    try:
+        with connect() as conn:
+            res = import_file(conn, kind, file.read_bytes(), file.name, opts, max_bytes=s.dataset_max_bytes, max_rows=s.dataset_max_rows)
+    except UploadError as exc:
+        typer.echo(f"rejected: {exc.message}", err=True)
+        raise typer.Exit(2) from exc
+    d = res.to_dict()
+    rep = d["report"]
+    typer.echo(json.dumps({k: rep[k] for k in ("total_rows", "valid_rows", "error_count", "mapping", "ignored_columns", "unstored_columns",
+                                              "missing_required", "warnings", "stage_order", "summary")}, ensure_ascii=False, indent=2, default=str))
+    for e in rep["errors"][:20]:
+        typer.echo(f"  linha {e['line']} · {e['column']}: {e['message']}", err=True)
+    typer.echo(f"status: {res.status}" + (f" · imported: {res.imported}" if res.imported else "") + ("" if apply else "  (dry run: use --apply to write)"))
+    if res.status in ("rejected", "failed") or (not apply and not rep["ok"]):
+        raise typer.Exit(2)
+
+
+@dataset_app.command("template")
+def dataset_template(kind: str = "deals") -> None:
+    """Print a CSV template."""
+    from .datasets.templates import TEMPLATES
+    typer.echo(TEMPLATES[kind], nl=False)
+
+
+@dataset_app.command("spec")
+def dataset_spec() -> None:
+    """JSON spec shared with the web UI: `omnidata dataset spec > web/src/lib/dataset-spec.json`."""
+    import json
+
+    from .datasets.spec import spec_json
+    typer.echo(json.dumps(spec_json(), ensure_ascii=False, indent=2))
+
+
+def _airbyte_client() -> AirbyteClient:
+    from .integrations.airbyte.client import AirbyteClient
+    s = get_settings()
+    if not (s.airbyte_url and s.airbyte_client_id and s.airbyte_client_secret):
+        typer.echo("set AIRBYTE_URL, AIRBYTE_CLIENT_ID and AIRBYTE_CLIENT_SECRET (see .env.example)", err=True)
+        raise typer.Exit(2)
+    return AirbyteClient(s.airbyte_url, s.airbyte_client_id, s.airbyte_client_secret)
+
+
+@airbyte_app.command("connections")
+def airbyte_connections() -> None:
+    """List connections from the Airbyte API (find the ids to put in config/integrations.yaml)."""
+    async def run() -> None:
+        c = _airbyte_client()
+        try:
+            for x in await c.list_connections():
+                typer.echo(f"{x.get('connectionId')}  {x.get('name')}  status={x.get('status')}")
+        finally:
+            await c.aclose()
+    asyncio.run(run())
+
+
+@airbyte_app.command("sync")
+def airbyte_sync(connection_id: list[str] = typer.Option([], "--connection-id", help="default: all in config/integrations.yaml"),
+                 wait: bool = typer.Option(True, help="wait until the job ends")) -> None:
+    """Trigger Airbyte syncs (Airbyte's own scheduler normally does this)."""
+    from .integrations.airbyte.generic import load_config
+    ids = connection_id or [c["id"] for c in (load_config().get("airbyte", {}).get("connections") or [])]
+    if not ids:
+        typer.echo("no connection ids: pass --connection-id or fill airbyte.connections", err=True)
+        raise typer.Exit(2)
+
+    async def run() -> bool:
+        c = _airbyte_client()
+        ok = True
+        try:
+            for cid in ids:
+                job = await c.trigger_sync(cid)
+                typer.echo(f"job {job.id} started ({cid})")
+                if wait:
+                    job = await c.wait(job.id)
+                    typer.echo(f"job {job.id}: {job.status}" + (f" rows={job.rows_synced}" if job.rows_synced is not None else ""))
+                    ok = ok and job.ok
+        finally:
+            await c.aclose()
+        return ok
+    if not asyncio.run(run()):
+        raise typer.Exit(1)
+
+
+@airbyte_app.command("ingest")
+def airbyte_ingest(full: bool = typer.Option(False, help="ignore cursors and re-read everything"),
+                   stream: list[str] = typer.Option([], "--stream", help="limit to these streams")) -> None:
+    """Map the HubSpot tables Airbyte landed into silver (incremental by _airbyte_extracted_at)."""
+    from .db import advisory_lock, connect
+    from .integrations.airbyte.landing import ingest
+    with connect(direct=True) as conn, advisory_lock(conn, 7006):
+        for k, v in ingest(conn, get_settings().airbyte_schema, streams=stream or None, full=full).items():
+            typer.echo(f"{k:26s} {v}")
+
+
+@airbyte_app.command("generic")
+def airbyte_generic(apply: bool = typer.Option(False, "--apply"), name: str = typer.Option("", help="only this mapping (also runs it if disabled)")) -> None:
+    """Import other Airbyte sources through the canonical dataset importer (config/integrations.yaml `generic`)."""
+    from .db import connect
+    from .integrations.airbyte.generic import run_all
+    with connect() as conn:
+        for k, v in run_all(conn, apply=apply, only=name or None, max_rows=get_settings().dataset_max_rows).items():
+            typer.echo(f"{k:14s} {v}")
+    if not apply:
+        typer.echo("(dry run: use --apply to write)")
 
 
 @app.command("team")
