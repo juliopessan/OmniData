@@ -3,10 +3,12 @@ Purpose: WhatsApp sales assistant on a HubSpot-fed Postgres store. Source of tru
 
 ## Layout
 - `src/omnidata/` Python backend (M0: ingestion, audit, seed, backup). `supabase/migrations/` forward-only SQL.
+- Bot (M1): `bot/` (orchestrator, actions, repo, gateway, webhook), `llm/`, `alerts/`, `api/`, `jobs/worker.py`; gold/serving are SQL views (ADR 0002).
 - `web/` Next.js front-end (landing, auth, dashboard) with the Ledger design system; synthetic data only.
 
 ## Commands
 - make check      # ruff + mypy + pytest (must pass before any commit; dbt build arrives with M1)
+- omnidata serve api | omnidata serve worker | omnidata user invite|erase | omnidata quota import <csv>
 - make migrate    # apply supabase/migrations  (uv run omnidata db migrate)
 - omnidata audit | omnidata audit properties | omnidata ingest backfill | omnidata ingest incremental | omnidata dev seed
 - omnidata db backup | omnidata db size-report

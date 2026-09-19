@@ -7,7 +7,9 @@ Este repositório contém:
 - **`web/`** — front-end SaaS (landing, funcionalidades, preços, login, cadastro, dashboard) em Next.js 15, com o design system **Ledger** (verde-menta = medido, argila = não verificado, reservados).
 - **`src/omnidata/` + `supabase/migrations/`** — back-end **M0** (Python 3.12): migrations bronze/silver/app, cliente HubSpot resiliente, ingestão (backfill retomável, incremental, histórico de propriedades, snapshots), `omnidata audit`, `dev seed` e backup.
 
-Ainda não implementado (M1+): dbt/gold, orquestrador e webhook do WhatsApp, alertas, escritas no HubSpot.
+Também implementado (M1, **testado só com mocks**): API/webhook do WhatsApp, worker e agendador, orquestrador (LLM só nas pontas), guarda de números, permissões por `Principal`, escritas no HubSpot com recibo/Desfazer/confirmação, alertas, resumo matinal, views `gold`/`serving`. Ver `docs/go-live.md` para o que depende das suas contas (HubSpot, Meta, LLM, Supabase).
+
+Ainda não implementado: motivo de perda (M2), previsão/modelo (M2), coach e transcrições (M3), dbt (ADR 0002).
 
 ## Back-end (M0)
 
@@ -18,6 +20,8 @@ uv run omnidata db migrate
 uv run omnidata dev seed        # CRM sintético, sem PII
 uv run omnidata audit           # relatório de prontidão + go/no-go
 uv run omnidata audit properties && uv run omnidata ingest backfill   # requer token do HubSpot
+uv run omnidata serve api       # webhook + /healthz + /readyz
+uv run omnidata serve worker    # fila de mensagens + ingestão + alertas
 make check                      # ruff + mypy + pytest
 ```
 
@@ -35,7 +39,7 @@ cd web && npm install && npm run dev   # http://localhost:3000
 |---|---|
 | `/` | Landing com livro-razão calculado a partir de dados sintéticos |
 | `/funcionalidades` | Blocos por tema com exemplos de conversa no WhatsApp (filtro por tema) |
-| `/precos`, `/login`, `/cadastro` | Preços ilustrativos; login/cadastro **sem autenticação real** |
+| `/precos`, `/login`, `/cadastro` | Preços todos “Sob consulta”; login/cadastro **sem autenticação real** |
 | `/dashboard/*` | Visão geral, negócios, alertas, WhatsApp, qualidade dos dados |
 
 Cada rota tem `<title>` e favicon próprios (`web/src/app/**/icon.svg`). O efeito de verbos girando está em `web/src/components/SpinVerb.tsx`.

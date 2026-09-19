@@ -6,8 +6,8 @@ import { Eyebrow } from "@/components/Ledger";
 export const metadata: Metadata = { title: "Preços" };
 
 const plans = [
-  { name: "Piloto", price: "R$ 0", per: "/ até 5 vendedores", cta: "Começar agora", items: ["Dados sintéticos ou HubSpot", "Assistente e alertas", "Suporte por e-mail"] },
-  { name: "Time", price: "R$ 49", per: "/ vendedor / mês", cta: "Falar com vendas", items: ["Tudo do Piloto", "Motivo de perda e previsão", "Digest do gestor", "Backup noturno"] },
+  { name: "Piloto", price: "Sob consulta", per: "· até 5 vendedores", cta: "Falar com vendas", items: ["Dados sintéticos ou HubSpot", "Assistente e alertas", "Suporte por e-mail"] },
+  { name: "Time", price: "Sob consulta", per: "· por vendedor", cta: "Falar com vendas", items: ["Tudo do Piloto", "Motivo de perda e previsão", "Digest do gestor", "Backup noturno"] },
   { name: "Empresa", price: "Sob consulta", per: "", cta: "Falar com vendas", items: ["Tudo do Time", "SSO e trilha de auditoria", "Região São Paulo", "Novas fontes (suporte, cobrança)"] },
 ];
 
@@ -20,7 +20,7 @@ export default function Precos() {
           <div className="stack" style={{ gap: 22 }}>
             <Eyebrow>Preços</Eyebrow>
             <h1 className="display" style={{ fontSize: "clamp(40px,6vw,72px)" }}>Simples como uma <span className="voice">planilha.</span></h1>
-            <p className="lede">Valores ilustrativos para esta demonstração. Custos de canal (WhatsApp) e de LLM são exibidos por vendedor no painel.</p>
+            <p className="lede">Cada plano é dimensionado ao tamanho do time. Custos de canal (WhatsApp) e de LLM são exibidos por vendedor no painel.</p>
           </div>
         </div>
         <div className="wrap" style={{ paddingBottom: 72 }}>
@@ -28,7 +28,7 @@ export default function Precos() {
             {plans.map((p) => (
               <div className="plan" key={p.name}>
                 <span className="tag" style={{ alignSelf: "flex-start" }}>{p.name}</span>
-                <div className="price">{p.price} <small>{p.per}</small></div>
+                <div className="price" style={{ fontSize: 30 }}>{p.price} <small>{p.per}</small></div>
                 <ul>{p.items.map((i) => <li key={i}>{i}</li>)}</ul>
                 <Link href="/cadastro" className="btn">{p.cta}</Link>
               </div>

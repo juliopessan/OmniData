@@ -1,0 +1,104 @@
+"""Worker: message loop + scheduler. Jobs are guarded by Postgres advisory locks (one run at a time)."""
+from __future__ import annotations
+
+import asyncio
+import logging
+import subprocess
+from datetime import UTC, datetime
+from pathlib import Path
+
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
+
+from ..alerts import engine
+from ..bot import actions
+from ..bot.gateway import WhatsAppCloudGateway
+from ..bot.orchestrator import Deps, process_next, requeue_stuck
+from ..config import ROOT, Settings, get_settings
+from ..crm.hubspot.client import HubSpotClient
+from ..crm.hubspot.writeback import HubSpotWriter
+from ..db import advisory_lock, connect
+from ..ingest import jobs as ingest_jobs
+from ..ingest.backup import backup
+from ..llm.anthropic import AnthropicClient
+from ..llm.azure_openai import AzureOpenAIClient
+from ..llm.base import LlmClient
+
+log = logging.getLogger("omnidata.worker")
+
+
+def build_llm(s: Settings) -> LlmClient | None:
+    if s.llm_provider == "anthropic" and s.anthropic_api_key:
+        return AnthropicClient(s.anthropic_api_key)
+    if s.llm_provider == "azure_openai" and s.azure_openai_endpoint and s.azure_openai_api_key:
+        return AzureOpenAIClient(s.azure_openai_endpoint, s.azure_openai_api_key, s.azure_openai_deployment_router,
+                                 s.azure_openai_deployment_narrator, s.azure_openai_deployment_transcribe)
+    return None  # degraded (keyword/menu) mode
+
+
+async def _locked(key: int, fn):  # type: ignore[no-untyped-def]
+    try:
+        with connect(direct=True) as conn, advisory_lock(conn, key):
+            return await fn(conn)
+    except RuntimeError as exc:
+        log.info("skip job %s: %s", key, exc)
+    except Exception as exc:  # a failing job must not kill the worker
+        log.error("job %s failed: %s", key, type(exc).__name__)
+
+
+async def run(s: Settings | None = None) -> None:
+    s = s or get_settings()
+    gw = WhatsAppCloudGateway(s.whatsapp_phone_number_id, s.whatsapp_access_token)
+    hs = HubSpotClient(s.hubspot_access_token, rps=s.hubspot_rps, search_rps=s.hubspot_search_rps) if s.hubspot_access_token else None
+    deps = Deps(gateway=gw, writer=HubSpotWriter(hs) if hs else None, llm=build_llm(s), settings=s)
+
+    async def ingest_and_alert() -> None:
+        async def job(conn):  # type: ignore[no-untyped-def]
+            if hs:
+                await ingest_jobs.incremental(conn, hs)
+            engine.evaluate(conn)
+            await engine.dispatch(conn, gw, s)
+        await _locked(7002, job)
+
+    async def briefs() -> None:
+        await _locked(7003, lambda conn: engine.morning_briefs(conn, gw))
+
+    async def housekeeping() -> None:
+        async def job(conn):  # type: ignore[no-untyped-def]
+            actions.expire_pending(conn)
+            requeue_stuck(conn)
+            with conn.cursor() as cur:
+                cur.execute("delete from bronze.hubspot_raw where ingested_at < now() - interval '30 days'")
+                cur.execute("delete from app.wa_message where received_at < now() - interval '90 days'")
+                cur.execute("delete from app.llm_call where created_at < now() - interval '180 days'")
+            conn.commit()
+        await _locked(7004, job)
+
+    async def snapshot() -> None:
+        async def job(conn):  # type: ignore[no-untyped-def]
+            ingest_jobs.weekly_snapshot(conn)
+        await _locked(7005, job)
+
+    async def nightly_backup() -> None:
+        try:
+            await asyncio.to_thread(backup, s.direct_url, Path(ROOT / "backups"))
+        except (subprocess.CalledProcessError, FileNotFoundError) as exc:
+            log.error("backup failed: %s", type(exc).__name__)
+
+    sched = AsyncIOScheduler(timezone=s.app_timezone)
+    sched.add_job(ingest_and_alert, "interval", minutes=15, next_run_time=datetime.now(UTC), max_instances=1, coalesce=True)
+    sched.add_job(briefs, "interval", minutes=5, max_instances=1, coalesce=True)
+    sched.add_job(housekeeping, "interval", minutes=5, max_instances=1, coalesce=True)
+    sched.add_job(snapshot, "cron", day_of_week="mon", hour=2)
+    sched.add_job(nightly_backup, "cron", hour=3)
+    sched.start()
+    log.info("worker started (llm=%s, hubspot=%s)", "on" if deps.llm else "degraded", "on" if hs else "off")
+
+    with connect() as conn:
+        while True:
+            try:
+                if not await process_next(conn, deps):
+                    await asyncio.sleep(1)
+            except Exception as exc:
+                log.error("loop error: %s", type(exc).__name__)
+                conn.rollback()
+                await asyncio.sleep(2)

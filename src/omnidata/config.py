@@ -24,6 +24,22 @@ class Settings(BaseSettings):
     stage_age_default_days: int = 14
     min_n_ranking: int = 20
     model_min_closed: int = 300
+    whatsapp_phone_number_id: str = ""
+    whatsapp_access_token: str = ""
+    whatsapp_app_secret: str = ""
+    whatsapp_verify_token: str = ""
+    llm_provider: str = "azure_openai"
+    azure_openai_endpoint: str = ""
+    azure_openai_api_key: str = ""
+    azure_openai_deployment_router: str = ""
+    azure_openai_deployment_narrator: str = ""
+    azure_openai_deployment_transcribe: str = ""
+    anthropic_api_key: str = ""
+    alert_daily_cap: int = 5
+    alert_quiet_start: str = "20:00"
+    alert_quiet_end: str = "07:00"
+    rate_limit_msgs_per_hour: int = 60
+    user_daily_token_budget: int = 100_000
 
     @property
     def direct_url(self) -> str:

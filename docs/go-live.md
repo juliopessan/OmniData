@@ -1,0 +1,28 @@
+# Go-live runbook — what only an account owner can do
+
+Code is done and tested against mocks. **Nothing below has been exercised against the real services.** Do these in order.
+
+## 1. HubSpot (OPEN-1)
+1. Create a **private app**. Scopes (least privilege): `crm.objects.deals.read/write`, `crm.objects.contacts.read`, `crm.objects.companies.read`,
+   `crm.objects.owners.read`, `crm.schemas.deals.read`, `crm.objects.notes.write`... plus `tasks` read/write. Confirm names in HubSpot's scope list.
+2. Put the token in `HUBSPOT_ACCESS_TOKEN`. Run `omnidata audit properties` and fix `config/hubspot_properties.yaml` for anything reported MISSING.
+3. Verify association type ids in `crm/hubspot/writeback.py` (note→deal 214, task→deal 216) with one manual note creation.
+4. `omnidata ingest backfill --months 24` then `omnidata audit` (go/no-go per use case).
+
+## 2. WhatsApp Cloud API (OPEN-5, OPEN-9)
+1. Meta Business verification, a phone number, a permanent system-user token → `WHATSAPP_ACCESS_TOKEN`, `WHATSAPP_PHONE_NUMBER_ID`.
+2. Webhook URL `https://<api-host>/webhooks/whatsapp`, verify token = `WHATSAPP_VERIFY_TOKEN`, subscribe to `messages`. App secret → `WHATSAPP_APP_SECRET`.
+3. Submit the templates in `docs/templates.md` (utility category). Approval lead time is the critical path.
+4. Invite a test user: `omnidata user invite --phone +55... --owner <hs_owner_id> --name Ana`; reply **Aceito** on WhatsApp.
+
+## 3. LLM (OPEN-7)
+Set `LLM_PROVIDER` and either the Azure OpenAI vars (router, narrator, transcribe deployments) or `ANTHROPIC_API_KEY`. Without a key the bot runs in
+degraded keyword/menu mode. Audio needs the Azure transcribe deployment.
+
+## 4. Database and hosting (D3, OPEN-10)
+- Use **Supabase Pro** before real PII (free tier: no backups, pauses when idle). `DATABASE_URL` = transaction pooler, `DATABASE_URL_DIRECT` = direct.
+- `omnidata db migrate`, then `docker compose up -d` (api + worker) on any container host. `/healthz` and `/readyz` are the probes.
+- Run a **restore drill** from `omnidata db backup` before the pilot (M1 exit).
+
+## 5. Before real reps (OPEN-6)
+Legal sign-off on LGPD basis/retention; import quotas: `omnidata quota import quotas.csv` (owner,period_start,period_end,amount).
