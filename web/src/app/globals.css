@@ -264,7 +264,7 @@ td .sub { display: block; font-size: 12px; color: var(--ink-soft); }
 .hbar-t .trk, .split .trk { fill: var(--rule); }
 .hbar-t .fill, .split .fill { fill: var(--ink); }
 .hbar-t .fill.gap, .split .fill.gap { fill: var(--clay); }
-.hbar-v { font-family: var(--mono); font-size: 12.5px; font-variant-numeric: tabular-nums; text-align: right; min-width: 56px; }
+.hbar-v { white-space: nowrap; font-family: var(--mono); font-size: 12.5px; font-variant-numeric: tabular-nums; text-align: right; min-width: 56px; }
 .hbar-n { grid-column: 2 / -1; font-family: var(--mono); font-size: 11px; color: var(--ink-faint); }
 .split { margin: 0; display: flex; flex-direction: column; gap: 8px; }
 .split svg { width: 100%; height: 14px; display: block; }
@@ -286,11 +286,47 @@ td .sub { display: block; font-size: 12px; color: var(--ink-soft); }
 .decision .rule { font-size: 12.5px; color: var(--ink-faint); }
 .decision .act { font-size: 15px; }
 @media (max-width: 560px) { .hbar { grid-template-columns: minmax(0, 1fr) auto; } .hbar-t { grid-column: 1 / -1; grid-row: 2; } .hbar-n { grid-column: 1 / -1; } }
+/* Impressão / PDF do Modo reunião: A4, fundo branco, seções que fluem sem buracos e a página de decisões à parte */
+@page { size: A4; margin: 11mm 12mm 13mm; @bottom-left { content: "OmniData · Reunião de vendas"; font: 8px/1 monospace; color: #777; } @bottom-right { content: counter(page) " / " counter(pages); font: 8px/1 monospace; color: #777; } }
+.print-only { display: none; }
 @media print {
+  html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  html, body { background: #fff !important; }
   .side, .no-print { display: none !important; }
-  .app { display: block !important; }
-  .main { padding: 0 !important; gap: 22px !important; }
-  .meet-sec { page-break-before: auto; }
-  .ledger { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-  .hbar-t .fill, .split .fill, .ring .arc { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .print-only { display: block; }
+  .app, .main { display: block !important; background: #fff !important; min-height: 0 !important; }
+  .main { padding: 0 !important; }
+  .main > * + * { margin-top: 10px; }
+  .main-head .h2 { font-size: 26px; }
+  .ledger { padding: 12px 16px; gap: 10px; }
+  .figs { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; padding-top: 12px; }
+  .fig b { font-size: 20px; }
+  .measured p { font-size: 12px; }
+  .meet-sec { display: block; break-inside: auto; padding-top: 4px; }
+  .meet-sec > * + * { margin-top: 10px; }
+  .panel-t { break-after: avoid; margin-bottom: 8px; }
+  .panel-t .h3 { font-size: 15px; }
+  .panel-t { padding-bottom: 8px; }
+  .split figcaption { font-size: 10.5px; }
+  .flag { padding: 10px 14px; }
+  .note { font-size: 10.5px; }
+  .hbars { gap: 4px; }
+  .hbar, .decision, .split, .flag, .rule-note, .rings { break-inside: avoid; }
+  .hbar-l, .hbar-v { font-size: 11.5px; }
+  .hbar { gap: 1px 12px; }
+  .hbar-n { font-size: 9px; margin-top: -1px; }
+  .rings { gap: 10px; }
+  .ring svg { width: 50px; height: 50px; }
+  .ring b { top: 16px; font-size: 10.5px; }
+  .ring figcaption { font-size: 9.5px; }
+  .decision { padding: 9px 14px; gap: 4px; }
+  .decision .h3 { font-size: 14.5px; }
+  .decision ul { font-size: 11px; }
+  .decision .rule { font-size: 10.5px; }
+  .decision .act { font-size: 12.5px; }
+  .decision { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; }
+  .decision > * { grid-column: 1 / -1; }
+  .decision > .decision-k { grid-column: 1; grid-row: 1; }
+  .decision > .agent-tag { grid-column: 2; grid-row: 1; font-size: 10.5px; }
+  .decision + .decision, .decisions-list > * + * { margin-top: 8px; }
 }

@@ -79,7 +79,7 @@ export function ReuniaoView() {
           <section className="meet-sec" id="pipeline">
             <div className="panel-t"><h2 className="h3"><span className="mono">01</span> Pipeline: quanto e onde</h2><AgentTag k="altair" /></div>
             <SplitBar done={view.withValue} gap={view.open.length - view.withValue} doneLabel="com valor" gapLabel="sem valor" />
-            {view.top.length > 0 && <HBars label="Maiores negócios abertos" rows={view.top.slice(0, 6).map((d) => ({ label: short(d.name), value: d.amount, display: brl(d.amount), note: view.amount ? `${pct(d.amount / view.amount, 0)} do pipeline` : undefined }))} />}
+            {view.top.length > 0 && <HBars label="Maiores negócios abertos" rows={view.top.slice(0, 6).map((d) => ({ label: short(d.name), value: d.amount, display: view.amount ? `${brl(d.amount)} · ${pct(d.amount / view.amount, 0)}` : brl(d.amount) }))} />}
           </section>
 
           <section className="meet-sec" id="demanda">
@@ -121,11 +121,14 @@ export function ReuniaoView() {
             {view.decisions.length === 0
               ? <p className="note">Nenhuma regra disparou com os dados atuais.</p>
               : <>
-                  <div className="stack" style={{ gap: 14 }}>{view.decisions.slice(0, 5).map((d) => <DecisionCard key={d.id} d={d} />)}</div>
+                  <div className="stack decisions-list" style={{ gap: 14 }}>{view.decisions.slice(0, 5).map((d) => <DecisionCard key={d.id} d={d} />)}</div>
                   {view.decisions.length > 5 && (
-                    <details className="no-print"><summary className="note">Ver as outras {view.decisions.length - 5} sugestões</summary>
-                      <div className="stack" style={{ gap: 14, marginTop: 14 }}>{view.decisions.slice(5).map((d) => <DecisionCard key={d.id} d={d} />)}</div>
-                    </details>
+                    <>
+                      <details className="no-print"><summary className="note">Ver as outras {view.decisions.length - 5} sugestões</summary>
+                        <div className="stack" style={{ gap: 14, marginTop: 14 }}>{view.decisions.slice(5).map((d) => <DecisionCard key={d.id} d={d} />)}</div>
+                      </details>
+                      <div className="print-only decisions-list">{view.decisions.slice(5).map((d) => <DecisionCard key={d.id} d={d} />)}</div>
+                    </>
                   )}
                 </>}
           </section>
