@@ -202,8 +202,10 @@ def eval_planner(mode: str = typer.Option("keyword", help="keyword (no LLM) | ll
                  min_correct: float = typer.Option(0.0, help="exit 1 if the share of correct cases is below this")) -> None:
     """Does Orion send each request to the right specialist and tool? Exit 1 on any critical case or if below --min-correct."""
     import json
+    import logging
 
     from .evals import planner as ev
+    logging.getLogger("httpx").setLevel(logging.WARNING)  # one INFO line per request would bury the report
     cs = ev.load_cases(cases) if cases else ev.load_cases()
     if mode == "keyword":
         rep = ev.run_keyword(cs)

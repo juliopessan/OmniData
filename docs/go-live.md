@@ -17,7 +17,7 @@ Code is done and tested against mocks. **Nothing below has been exercised agains
 
 ## 3. LLM and voice notes (OPEN-7, ADR 0004)
 - Chat: `LLM_PROVIDER=anthropic` + `ANTHROPIC_API_KEY` (default), or `openai` + `OPENAI_API_KEY`, `OPENAI_MODEL_ROUTER`, `OPENAI_MODEL_NARRATOR`.
-  Without a key the bot runs in degraded keyword/menu mode. **No Azure.**
+  Without a key the bot runs in degraded keyword/menu mode. `LLM_PROVIDER=deepseek` also works (set `DEEPSEEK_API_KEY` and the two model ids; list them with `curl -H "Authorization: Bearer $DEEPSEEK_API_KEY" https://api.deepseek.com/models`). Before real traffic, decide whether tool JSON (deal and company names) may go to that provider: it is a third party outside your control (LGPD). **No Azure.**
 - Voice notes: set `OPENAI_API_KEY` (transcription works with either chat provider). Default model `gpt-transcribe`. ffmpeg must be installed (the Docker image has it).
 - Put keys in your secret manager / Vercel env, **never in chats, commits or `.env` files that are committed**. A key pasted in a chat should be treated as leaked and rotated.
 - Before the pilot: `uv run python scripts/bench_transcribe.py samples/` on 20+ real WhatsApp voice notes.

@@ -49,6 +49,8 @@ def test_judge_outcomes():
     assert ev.judge(c, "menu", ()) == "miss" and ev.judge(w, "menu", ()) == "acceptable"
     assert ev.judge(c, "plan", (("lyra", "add_note"),)) == "critical"               # a write nobody asked for
     assert ev.judge(multi, "plan", (("polaris", "get_fix_queue"),)) == "partial"
+    assert ev.judge(c, "plan", (("vega", "get_kpis"), ("argus", "get_data_quality"))) == "extra"     # right step plus an unrequested read
+    assert ev.judge(c, "plan", (("vega", "get_kpis"), ("lyra", "add_note"))) == "critical"          # ...but never plus a write
     assert ev.judge(ev.Case("o", "t", "q", kind="oos"), "plan", (("vega", "get_kpis"),)) == "wrong"
     assert ev.judge(ev.Case("o", "t", "q", kind="oos"), "oos", ()) == "correct"
 
@@ -81,7 +83,8 @@ def test_llm_mode_scores_an_ideal_planner_and_flags_a_bad_one():
     extra = asyncio.run(ev.run_llm(cases, ScriptedLlm("extra_write")))
     assert extra.count("critical") > 0                                          # an invented write is caught by the eval
     bad = asyncio.run(ev.run_llm(cases, ScriptedLlm("bad_agent")))
-    assert bad.count("critical") == 0 and bad.rate("correct") < 0.3             # invalid plans are rejected by code, so nothing is executed
+    # The invalid plan is rejected by code (never executed) and, exactly like the bot, the keyword route answers instead.
+    assert bad.count("critical") == 0 and sum(1 for r in bad.results if r.got.startswith("rejected")) > 0
 
 
 def test_routing_regressions_found_by_the_eval():
@@ -99,3 +102,12 @@ def test_cli_exit_codes_and_no_llm_message():
     out = r.invoke(app, ["eval", "planner", "--mode", "llm"], env={"LLM_PROVIDER": "anthropic", "ANTHROPIC_API_KEY": ""})
     assert out.exit_code == 2
     assert r.invoke(app, ["eval", "planner", "--mode", "nope"]).exit_code == 2
+
+
+def test_planner_prompt_describes_every_tool_and_asks_for_few_steps():
+    """The first LLM run showed 'bom dia' and 'qual campanha converte mais?' called out of scope and get_deal rejected (no query):
+    the prompt must carry tool descriptions and required args, and ask for the fewest steps."""
+    from omnidata.agents.orion import ORION_SYSTEM
+    from omnidata.bot.tools.catalog import TOOLS
+    assert all(t in ORION_SYSTEM for t in TOOLS) and "get_deal(query)" in ORION_SYSTEM and "MENOR número de passos" in ORION_SYSTEM
+    assert all(desc in ORION_SYSTEM for _, desc in TOOLS.values())

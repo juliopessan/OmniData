@@ -28,11 +28,15 @@ class Settings(BaseSettings):
     whatsapp_access_token: str = ""
     whatsapp_app_secret: str = ""
     whatsapp_verify_token: str = ""
-    llm_provider: str = "anthropic"  # anthropic | openai
+    llm_provider: str = "anthropic"  # anthropic | openai | deepseek
     openai_api_key: str = ""
     openai_base_url: str = "https://api.openai.com/v1"
     openai_model_router: str = ""
     openai_model_narrator: str = ""
+    deepseek_api_key: str = ""  # chat only (OpenAI-compatible API); voice-note transcription stays on OPENAI_API_KEY
+    deepseek_base_url: str = "https://api.deepseek.com"
+    deepseek_model_router: str = ""
+    deepseek_model_narrator: str = ""
     transcribe_model: str = "gpt-transcribe"
     transcribe_fallback_model: str = "gpt-4o-mini-transcribe"
     transcribe_max_seconds: int = 180

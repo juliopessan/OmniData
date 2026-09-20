@@ -15,7 +15,8 @@ DEFAULT_BASE_URL = "https://api.openai.com/v1"
 
 class OpenAIChatClient:
     def __init__(self, api_key: str, router_model: str, narrator_model: str, base_url: str = DEFAULT_BASE_URL,
-                 transport: httpx.AsyncBaseTransport | None = None) -> None:
+                 transport: httpx.AsyncBaseTransport | None = None, provider: str = "openai") -> None:
+        self._provider = provider  # label in telemetry: any OpenAI-compatible endpoint (e.g. deepseek)
         self._base = base_url.rstrip("/")
         self._router, self._narrator = router_model, narrator_model
         self._http = httpx.AsyncClient(transport=transport, timeout=30.0, headers={"Authorization": f"Bearer {api_key}"})
@@ -27,10 +28,10 @@ class OpenAIChatClient:
         except httpx.TransportError as exc:
             raise LlmError(f"transport: {type(exc).__name__}") from exc
         if r.status_code >= 400:
-            raise LlmError(f"openai {r.status_code}")
+            raise LlmError(f"{self._provider} {r.status_code}")
         d = r.json()
         u = d.get("usage", {})
-        return d, Usage("openai", model, u.get("prompt_tokens", 0), u.get("completion_tokens", 0), int((time.monotonic() - t0) * 1000))
+        return d, Usage(self._provider, model, u.get("prompt_tokens", 0), u.get("completion_tokens", 0), int((time.monotonic() - t0) * 1000))
 
     async def route(self, system: str, user_text: str, tools: list[dict[str, Any]]) -> RouterResult:
         body = {"messages": [{"role": "system", "content": system}, {"role": "user", "content": user_text}],

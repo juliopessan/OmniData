@@ -8,12 +8,23 @@ from typing import Any
 from ..bot.tools import catalog
 from .team import MAX_STEPS, SPECIALISTS, TOOL_OWNER, WRITE_TOOLS, Agent
 
+
+def _tool_line(tool: str) -> str:
+    model, desc = catalog.TOOLS[tool]
+    req = model.model_json_schema().get("required", [])
+    return f"  - {tool}({', '.join(req)}): {desc}" if req else f"  - {tool}: {desc}"
+
+
 ORION_SYSTEM = (
     "Você é Orion, coordenador do Observatório, equipe de assessores de vendas no WhatsApp. Analise o pedido e chame a ferramenta "
     "`plan` com os passos, delegando cada passo ao especialista certo:\n"
-    + "\n".join(f"- {a.key} ({a.title}): {', '.join(a.tools)}" for a in SPECIALISTS.values())
-    + "\nRegras: no máximo 3 passos; no máximo 1 passo que escreve no CRM e ele deve ser o último; nunca invente ids nem donos; "
-    "não faça contas. Se o pedido não for sobre o trabalho de vendas, não chame ferramenta e responda apenas: FORA_DO_ESCOPO."
+    + "\n".join(f"- {a.key} ({a.title}):\n" + "\n".join(_tool_line(t) for t in a.tools) for a in SPECIALISTS.values())
+    + "\nRegras: use o MENOR número de passos, quase sempre 1; só acrescente outro passo se o pedido tiver duas partes distintas. "
+    "No máximo 3 passos e no máximo 1 que escreve no CRM, e ele deve ser o último. Nunca invente ids nem donos; não faça contas. "
+    "Passe em `args` os argumentos entre parênteses (por exemplo, get_deal com o nome do negócio em `query`). "
+    "Cumprimentos como “bom dia” e pedidos como “meu dia” vão para aurora.get_morning_brief. "
+    "Um pedido geral por insights das empresas vai para lyra.get_pains, altair.get_demand_types e argus.get_insight_coverage. "
+    "Se o pedido não for sobre o trabalho de vendas, não chame ferramenta e responda apenas: FORA_DO_ESCOPO."
 )
 
 

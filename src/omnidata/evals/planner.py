@@ -2,7 +2,7 @@
 Two modes over the same golden set (planner_cases.yaml):
   keyword  the degraded route (no LLM); runs anywhere, in CI
   llm      the real planner LLM (needs a key); compares the validated plan with the ideal one
-Outcomes: correct | acceptable (menu instead of a plan, allowed for cases only an LLM can do) | partial (answered only some of several reads) |
+Outcomes: correct | acceptable (menu instead of a plan, allowed for cases only an LLM can do) | extra (right steps plus unrequested reads) | partial (answered only some of several reads) |
 miss (menu, should have answered) | wrong (answered with another plan: worse than a menu) | critical (a CRM write nobody asked for).
 CAUTION: the keyword rules were tuned on this same set, so a high keyword score shows no regression, not generalisation.
 Measure generalisation with phrases the rules have never seen (real WhatsApp messages, once they exist)."""
@@ -66,9 +66,9 @@ class Report:
 
     def to_json(self) -> dict[str, Any]:
         return {"mode": self.mode, "total": self.total, "correct": self.rate("correct"), "correct_or_acceptable": self.rate("correct", "acceptable"),
-                "counts": {o: self.count(o) for o in ("correct", "acceptable", "partial", "miss", "wrong", "critical")}, "by_tag": self.by_tag(),
+                "counts": {o: self.count(o) for o in ("correct", "acceptable", "extra", "partial", "miss", "wrong", "critical")}, "by_tag": self.by_tag(),
                 "failures": [{"id": r.case.id, "text": r.case.text, "expected": render(r.case), "got": r.got, "outcome": r.outcome}
-                             for r in self.results if r.outcome in ("partial", "miss", "wrong", "critical")]}
+                             for r in self.results if r.outcome in ("extra", "partial", "miss", "wrong", "critical")]}
 
 
 def _steps(raw: list[str]) -> Steps:
@@ -104,6 +104,8 @@ def judge(case: Case, kind: str, steps: Steps) -> str:
                 return "correct"
             if not ideal_writes and steps and set(steps) < set(case.plan):
                 return "partial"                            # answered only part of a multi-read request: incomplete, not misleading
+            if set(case.plan) < set(steps) and not any(t in T.WRITE_TOOLS for _, t in steps if (_, t) not in case.plan):
+                return "extra"                              # the right steps plus unrequested READS: wordy and slower, not misleading
             return "wrong"
         if kind in ("menu", "oos"):
             return "acceptable" if case.menu_ok else "miss"
@@ -138,19 +140,21 @@ async def run_llm(cases: list[Case], llm: LlmClient) -> Report:
         if steps:
             got: Steps = tuple((s.agent, s.tool) for s in steps)
             rep.results.append(Result(c, _render_decision(Decision("plan", got)), judge(c, "plan", got)))
-        else:
-            kind = "oos" if status == "oos" else "menu"     # rejected/none: the bot falls back to keywords or the menu; scored as "no plan"
-            rep.results.append(Result(c, kind if status != "rejected" else "rejected plan", judge(c, kind, ())))
+        elif status == "oos":
+            rep.results.append(Result(c, "oos", judge(c, "oos", ())))
+        else:                                               # rejected / no tool: the bot falls back to the keyword route, so do we
+            d = keyword_decision(stripped, forced)
+            rep.results.append(Result(c, f"{status} → {_render_decision(d)}", judge(c, d.kind, d.steps)))
     return rep
 
 
 def format_report(rep: Report) -> str:
     lines = [f"planner eval · mode={rep.mode} · {rep.total} cases",
              f"correct {rep.rate('correct'):.0%} · correct or acceptable {rep.rate('correct', 'acceptable'):.0%} · "
-             f"partial {rep.count('partial')} · miss {rep.count('miss')} · wrong {rep.count('wrong')} · critical {rep.count('critical')}", "", "by tag:"]
+             f"extra {rep.count('extra')} · partial {rep.count('partial')} · miss {rep.count('miss')} · wrong {rep.count('wrong')} · critical {rep.count('critical')}", "", "by tag:"]
     for tag, c in sorted(rep.by_tag().items()):
-        lines.append(f"  {tag:<14} {c.get('correct', 0) + c.get('acceptable', 0)}/{c['n']}  (partial {c.get('partial', 0)}, miss {c.get('miss', 0)}, wrong {c.get('wrong', 0)}, critical {c.get('critical', 0)})")
-    bad = [r for r in rep.results if r.outcome in ("partial", "miss", "wrong", "critical")]
+        lines.append(f"  {tag:<14} {c.get('correct', 0) + c.get('acceptable', 0)}/{c['n']}  (extra {c.get('extra', 0)}, partial {c.get('partial', 0)}, miss {c.get('miss', 0)}, wrong {c.get('wrong', 0)}, critical {c.get('critical', 0)})")
+    bad = [r for r in rep.results if r.outcome in ("extra", "partial", "miss", "wrong", "critical")]
     if rep.mode == "keyword":
         lines += ["", "note: the keyword rules were tuned on this set; use new phrases to measure generalisation."]
     if bad:

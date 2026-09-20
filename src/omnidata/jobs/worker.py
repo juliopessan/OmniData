@@ -32,6 +32,8 @@ def build_llm(s: Settings) -> LlmClient | None:
         return AnthropicClient(s.anthropic_api_key)
     if s.llm_provider == "openai" and s.openai_api_key and s.openai_model_router and s.openai_model_narrator:
         return OpenAIChatClient(s.openai_api_key, s.openai_model_router, s.openai_model_narrator, s.openai_base_url)
+    if s.llm_provider == "deepseek" and s.deepseek_api_key and s.deepseek_model_router and s.deepseek_model_narrator:
+        return OpenAIChatClient(s.deepseek_api_key, s.deepseek_model_router, s.deepseek_model_narrator, s.deepseek_base_url, provider="deepseek")
     return None  # degraded (keyword/menu) mode
 
 
