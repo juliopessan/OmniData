@@ -20,7 +20,7 @@ Número na tela vem do SQL, nunca do modelo. É a primeira fatia de uma visão 3
 | Banco, migrations, views `gold`/`serving`, backup | Pronto e testado contra Postgres real |
 | Ingestão do HubSpot (backfill retomável, incremental, histórico, snapshots, `audit`) | Pronto; **testado só com fixtures e HubSpot simulado** |
 | Bot no WhatsApp (webhook, fila, orquestrador, escritas com recibo/Desfazer, alertas, resumo matinal) | Pronto; **testado só com simulação** |
-| Observatório (Orion planeja, especialistas executam) | Pronto; falta medir a acurácia do planejador com frases reais |
+| Observatório (Orion planeja, especialistas executam) | Pronto. Avaliação do planejador: conjunto de 68 frases + 17 inéditas (`omnidata eval planner`); **o modo com LLM ainda não foi medido** (precisa de chave) e faltam frases reais do WhatsApp |
 | Áudios do WhatsApp (transcrição) | Pronto; **ainda não rodou na API real da OpenAI** |
 | Upload de datasets (CSV/XLSX de negócios e metas): página, API e CLI | Pronto; testado com uma exportação real do HubSpot (1000 negócios) e no navegador |
 | Airbyte como camada de conectores (HubSpot + outras fontes por mapeamento) | Pronto no código; **nunca rodou contra um Airbyte real** ([docs/airbyte.md](docs/airbyte.md)) |
@@ -53,6 +53,19 @@ O LLM só *propõe* o plano; o código valida (allowlist por especialista, no m�
 **Coach (Polaris):** `/dashboard/qualidade` mostra “O que corrigir” e, no WhatsApp, “o que preciso corrigir?” devolve os negócios com lacunas (sem valor, data vencida, sem próximo passo, sem nota, nome fora do padrão), ordenados por valor. Se uma lacuna aparece em quase todos os negócios (≥ 90%), ele avisa que pode ser do export ou do padrão do CRM, em vez de cobrar cada vendedor. Dono desativado e duplicatas vão só para o gestor. A Polaris não escreve no CRM: a correção passa pela Lyra, com confirmação. `omnidata hygiene analyze <arquivo>` roda sem banco.
 
 **Insights de empresas** (`/dashboard/insights`, `omnidata insights analyze <arquivo>`): dores, termos recorrentes, ERPs/CRMs, tipo de demanda, segmentos e campanhas, extraídos das notas e dos nomes dos negócios por contagem determinística (sem LLM). Lyra cuida de dores e termos, Altair de demanda e ERPs, Vega de segmentos, Argus da cobertura e Aurora do insight do dia; o Orion junta tudo num pedido amplo. Cada bloco mostra a cobertura, e associações são correlação, nunca causa. Entende o export do HubSpot (`Cliente<>Parceiro [Demanda]`) e o formato `Empresa – Demanda`.
+
+## Avaliação do planejador (Orion)
+
+`uv run omnidata eval planner` mede se cada pedido vai para o especialista e a ferramenta certos, sem modelo-juiz: a resposta esperada é objetiva (agente + ferramenta), então a comparação é exata. O conjunto de frases fica em `src/omnidata/evals/planner_cases.yaml` (nomes de negócios do export real do HubSpot e alguns fictícios) e há um conjunto separado, `planner_holdout.yaml`, de frases que **nunca** foram usadas para ajustar as regras.
+
+| Modo | Como rodar | O que mede |
+|---|---|---|
+| `keyword` (padrão) | `omnidata eval planner` | o roteamento sem LLM (modo degradado). Roda em qualquer lugar, sem chave |
+| `llm` | `omnidata eval planner --mode llm` | o planejador de verdade (precisa de `LLM_PROVIDER` e chave no `.env`; gasta tokens) |
+
+Cada caso termina em: **correct**, **acceptable** (cardápio no lugar de uma resposta, aceito para escritas e pedidos com vários passos, que só o LLM faz), **partial** (respondeu só parte de vários pedidos de leitura), **miss** (cardápio quando devia responder), **wrong** (respondeu outra coisa, pior que o cardápio) e **critical** (uma escrita no CRM que ninguém pediu; o comando sai com erro se houver alguma). Opções: `--json`, `--cases arquivo.yaml`, `--min-correct 0.8`.
+
+Resultado atual em modo `keyword`: **85% corretos nas frases usadas para ajustar as regras** (isso só mostra que nada regrediu) e **24% nas 17 frases inéditas** (41% contando o cardápio como aceitável), sem nenhuma resposta errada nem escrita indevida. Ou seja, o modo sem LLM entende pouco fora do que foi previsto e cai no cardápio, que é o desenho; é por isso que a medida que importa é a do modo `llm`. Regra do conjunto inédito: não ajuste o roteador para fazê-lo passar; se precisar usar uma frase para corrigir algo, mova-a para o conjunto principal e escreva uma nova.
 
 ## Estrutura
 

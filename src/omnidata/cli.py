@@ -37,7 +37,9 @@ insights_app = typer.Typer(no_args_is_help=True, help="Company insights (dores, 
 app.add_typer(airbyte_app, name="airbyte")
 hygiene_app = typer.Typer(no_args_is_help=True, help="Data hygiene: the Coach's fix queue")
 app.add_typer(insights_app, name="insights")
+eval_app = typer.Typer(no_args_is_help=True, help="Evaluations (no database needed)")
 app.add_typer(hygiene_app, name="hygiene")
+app.add_typer(eval_app, name="eval")
 
 
 @dataset_app.command("import")
@@ -191,6 +193,33 @@ def insights_analyze(file: Path, limit: int = 8) -> None:
         raise typer.Exit(2)
     recs = [Rec(r["id"], r["name"], r["status"], r["amount"], r["campaign"], r["lost_reason"], r["notes"]) for r in rows]
     typer.echo(json.dumps(analyze(recs, limit), ensure_ascii=False, indent=2, default=str))
+
+
+@eval_app.command("planner")
+def eval_planner(mode: str = typer.Option("keyword", help="keyword (no LLM) | llm (uses LLM_PROVIDER and its key)"),
+                 cases: Path | None = typer.Option(None, help="YAML file with cases (default: the golden set)"),
+                 as_json: bool = typer.Option(False, "--json", help="machine-readable output"),
+                 min_correct: float = typer.Option(0.0, help="exit 1 if the share of correct cases is below this")) -> None:
+    """Does Orion send each request to the right specialist and tool? Exit 1 on any critical case or if below --min-correct."""
+    import json
+
+    from .evals import planner as ev
+    cs = ev.load_cases(cases) if cases else ev.load_cases()
+    if mode == "keyword":
+        rep = ev.run_keyword(cs)
+    elif mode == "llm":
+        from .jobs.worker import build_llm
+        llm = build_llm(get_settings())
+        if llm is None:
+            typer.echo("no LLM configured: set LLM_PROVIDER and its key (ANTHROPIC_API_KEY, or OPENAI_API_KEY + models) in .env", err=True)
+            raise typer.Exit(2)
+        rep = asyncio.run(ev.run_llm(cs, llm))
+    else:
+        typer.echo("mode must be keyword or llm", err=True)
+        raise typer.Exit(2)
+    typer.echo(json.dumps(rep.to_json(), ensure_ascii=False, indent=2) if as_json else ev.format_report(rep))
+    if rep.count("critical") or rep.rate("correct") < min_correct:
+        raise typer.Exit(1)
 
 
 @hygiene_app.command("spec")

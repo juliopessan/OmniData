@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import json
 import logging
-import re
 import uuid
 from dataclasses import dataclass
 from datetime import UTC, date, datetime
@@ -28,7 +27,8 @@ from . import actions, repo
 from . import strings_ptbr as S
 from .actions import Reply, audit
 from .gateway import GatewayError, MessagingGateway
-from .router import keyword_args, keyword_route
+from .router import keyword_args
+from .routing import NICK, OVERVIEW_PLAN, interpret_llm, keyword_decision, pre_route
 from .tools import catalog
 
 log = logging.getLogger("omnidata.orchestrator")
@@ -302,26 +302,21 @@ def _sign(agent: T.Agent, r: Reply) -> Reply:
     return r
 
 
-_NICK = re.compile(r"^\s*me chama de\s+(.{1,30}?)\s*[.!]?\s*$", re.IGNORECASE)
-_TEAM_Q = re.compile(r"\b(equipe|quem (sao|são) (voces|vocês)|quem trabalha|observatorio|observatório)\b", re.IGNORECASE)
 
 
 async def _orion(conn: Conn, deps: Deps, p: Principal, text: str) -> Reply:
     """Orion analyses the request and routes it to the specialists (ADR 0003). Falls back to keywords when there is no LLM."""
-    m = _NICK.match(text)
+    m = NICK.match(text)
     if m:  # 'me chama de Rê' (assessor-style preference by message)
         nick = mask_pii(m.group(1)).strip()
         with conn.cursor() as cur:
             cur.execute("update app.app_user set display_name=%s where id=%s", (nick, p.user_id))
         conn.commit()
         return _sign(T.ORION, Reply(S.NICK_OK.format(nick=nick)))
-    forced: T.Agent | None = None
-    addr = T.parse_address(text)
-    if addr:
-        forced, text = addr
-        if not text or text.lower().strip("?!. ") in ("quem é você", "quem e voce", "oi", "olá", "ola"):
-            return _sign(forced, Reply(S.AGENT_INTRO.format(name=forced.name, title=forced.title, tagline=forced.tagline, example=forced.examples[0])))
-    if forced is None and _TEAM_Q.search(text):
+    forced, text, early = pre_route(text)
+    if early and early.kind == "intro" and forced:
+        return _sign(forced, Reply(S.AGENT_INTRO.format(name=forced.name, title=forced.title, tagline=forced.tagline, example=forced.examples[0])))
+    if early and early.kind == "team":
         return _sign(T.ORION, Reply(S.tpl_team([(a.name, a.title, a.tagline) for a in T.TEAM.values()])))
 
     steps: list[Step] | None = None
@@ -329,28 +324,24 @@ async def _orion(conn: Conn, deps: Deps, p: Principal, text: str) -> Reply:
         try:
             res = await deps.llm.route(ORION_SYSTEM, mask_pii(text), [plan_schema()])
             _log_llm(conn, p.user_id, "planner", res.usage)
-            if res.tool and res.tool.name == "plan":
-                steps = validate_plan(res.tool.arguments.get("steps"), forced)
-                if steps is None:
-                    _log_step(conn, p, "orion", "plan", "rejected", 0)  # invalid plan: never executed
-            elif res.tool and res.tool.name in T.TOOL_OWNER:  # single direct tool call (also accepted)
-                steps = validate_plan([{"agent": T.TOOL_OWNER[res.tool.name], "tool": res.tool.name, "args": res.tool.arguments}], forced)
-            elif res.text and "FORA_DO_ESCOPO" in res.text:
+            steps, status = interpret_llm(res, forced)
+            if status == "rejected":
+                _log_step(conn, p, "orion", "plan", "rejected", 0)  # invalid plan: never executed
+            elif status == "oos":
                 return _sign(T.ORION, Reply(S.OUT_OF_SCOPE))
         except LlmError:
             audit(conn, p.user_id, "llm_down", {})
             conn.commit()
     if steps is None:
-        tool = keyword_route(text)  # degraded mode (FR-BOT-7): one specialist, no LLM
-        if tool is None and forced is None and _INSIGHTS_Q.search(text):
-            # "me dá os insights": Orion splits it (Lyra: dores, Altair: demanda, Argus: cobertura)
-            return await run_plan(conn, deps, p, validate_plan(OVERVIEW_PLAN) or [], text)
-        if tool is None:
+        d = keyword_decision(text, forced)  # degraded mode (FR-BOT-7): one specialist, no LLM
+        if d.kind == "menu":
             return _menu()
-        if forced and T.TOOL_OWNER[tool] != forced.key:
-            owner = T.TEAM[T.TOOL_OWNER[tool]]
+        if d.kind == "not_mine" and forced and d.other:
+            owner = T.TEAM[d.other]
             return _sign(forced, Reply(S.NOT_MINE.format(other=owner.name, title=owner.title, hint=owner.examples[0].split(", ")[-1].strip("“”\""))))
-        steps = single_step(tool, keyword_args(tool, text))
+        if len(d.steps) > 1:  # the insights overview: Orion splits it between specialists
+            return await run_plan(conn, deps, p, validate_plan(OVERVIEW_PLAN) or [], text)
+        steps = single_step(d.steps[0][1], keyword_args(d.steps[0][1], text))
     return await run_plan(conn, deps, p, steps, text)
 
 
@@ -483,9 +474,6 @@ def _insight(conn: Conn, p: Principal, tool: str, a: dict[str, Any]) -> tuple[di
     return {"pain": None if an["pains"]["low_n"] else top("pains", "items"), "pains_recorded": an["pains"]["with_pain"], "demand": top("demand_types", "items"), "system": top("systems", "items")}, S.tpl_digest
 
 
-_INSIGHTS_Q = re.compile(r"\b(insights?|panorama das empresas|radar das empresas)\b", re.IGNORECASE)
-OVERVIEW_PLAN = [{"agent": "lyra", "tool": "get_pains", "args": {}}, {"agent": "altair", "tool": "get_demand_types", "args": {}},
-                 {"agent": "argus", "tool": "get_insight_coverage", "args": {}}]
 
 
 async def _narrate(conn: Conn, deps: Deps, p: Principal, data: dict[str, Any], template: Any, agent: T.Agent | None = None) -> str:
