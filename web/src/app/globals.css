@@ -243,3 +243,12 @@ td .sub { display: block; font-size: 12px; color: var(--ink-soft); }
 /* Telas estreitas: o verbo girando no título não pode alargar a página */
 .main-head > * { min-width: 0; max-width: 100%; }
 .spinverb { flex-wrap: wrap; max-width: 100%; }
+
+/* Insights: etiqueta do agente responsável e barras discretas */
+.agent-tag { display: inline-flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--ink-soft); }
+.agent-tag b { color: var(--ink); font-weight: 800; }
+.agent-tag:hover { color: var(--ink); }
+.mono-tile.sm { width: 24px; height: 24px; font-size: 11px; border-radius: 4px; }
+.agent-row { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.minibar { display: block; height: 3px; margin-top: 6px; background: var(--rule); max-width: 220px; }
+.minibar i { display: block; height: 100%; background: var(--ink-soft); }

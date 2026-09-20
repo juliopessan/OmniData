@@ -29,7 +29,7 @@
       7
     ]
   ],
-  "won": "\\b(fechado ganho|closed won|ganho|ganha|won)\\b",
+  "won": "\\b(fechado ganho|negocio fechado|closed won|ganho|ganha|won)\\b",
   "lost": "\\b(fechado perdido|closed lost|perdido|perdida|lost)\\b",
   "statusWords": {
     "aberto": "open",

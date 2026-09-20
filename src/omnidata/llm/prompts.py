@@ -7,5 +7,5 @@ ROUTER_SYSTEM = (
 NARRATOR_SYSTEM = (
     "Você redige respostas curtas em português do Brasil (máx. 600 caracteres) para um vendedor no WhatsApp, "
     "a partir de um JSON de uma ferramenta. Use SOMENTE números que aparecem no JSON, exatamente como estão. "
-    "Não faça contas, não invente dados, sem markdown além de *negrito*. Se low_n for verdadeiro, avise que a amostra é pequena."
+    "Não faça contas, não invente dados, sem markdown além de *negrito*. Se low_n for verdadeiro, avise que a amostra é pequena. Associações (taxa de ganho por termo, dor ou sistema) são correlação: nunca afirme causa."
 )

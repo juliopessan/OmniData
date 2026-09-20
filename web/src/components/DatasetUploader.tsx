@@ -154,10 +154,11 @@ export function DatasetUploader() {
           )}
           <div className="actions">
             <button className="btn" disabled={!built.deals.length} onClick={() => {
-              const ok = saveStored({ filename: file.name, savedAt: new Date().toISOString(), deals: built.deals, probs: built.probs, stageOrder: built.stageOrder });
+              const ok = saveStored({ filename: file.name, savedAt: new Date().toISOString(), deals: built.deals, records: built.records, probs: built.probs, stageOrder: built.stageOrder });
               setSavedMsg(ok ? "ok" : "falhou");
             }}>Carregar no painel</button>
             {savedMsg === "ok" && <Link href="/dashboard" className="btn ghost">Abrir visão geral →</Link>}
+            {savedMsg === "ok" && <Link href="/dashboard/insights" className="btn ghost">Ver insights →</Link>}
           </div>
           {savedMsg === "falhou" && <Flag k="Não consegui salvar">O navegador recusou o armazenamento (arquivo grande demais ou modo privado). Tente um arquivo menor.</Flag>}
         </section>

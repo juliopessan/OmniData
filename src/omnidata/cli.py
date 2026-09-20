@@ -33,7 +33,9 @@ dataset_app = typer.Typer(no_args_is_help=True, help="Dataset uploads (CSV/XLSX 
 app.add_typer(serve_app, name="serve")
 airbyte_app = typer.Typer(no_args_is_help=True, help="Airbyte connector layer (docs/airbyte.md)")
 app.add_typer(dataset_app, name="dataset")
+insights_app = typer.Typer(no_args_is_help=True, help="Company insights (dores, termos, ERPs, demanda)")
 app.add_typer(airbyte_app, name="airbyte")
+app.add_typer(insights_app, name="insights")
 
 
 @dataset_app.command("import")
@@ -160,6 +162,33 @@ def airbyte_generic(apply: bool = typer.Option(False, "--apply"), name: str = ty
             typer.echo(f"{k:14s} {v}")
     if not apply:
         typer.echo("(dry run: use --apply to write)")
+
+
+@insights_app.command("spec")
+def insights_spec() -> None:
+    """JSON shared with the web UI: `omnidata insights spec > web/src/lib/insights-spec.json`."""
+    import json
+
+    from .insights.spec import spec_json
+    typer.echo(json.dumps(spec_json(), ensure_ascii=False, indent=2))
+
+
+@insights_app.command("analyze")
+def insights_analyze(file: Path, limit: int = 8) -> None:
+    """Run the insights engine on a deals CSV/XLSX (no database needed)."""
+    import json
+
+    from .datasets.parse import read_table
+    from .datasets.spec import DEALS
+    from .datasets.validate import validate
+    from .insights.compute import Rec, analyze
+    data = file.read_bytes()
+    rep, rows = validate(DEALS, read_table(data, file.name), file.name, data)
+    if not rows:
+        typer.echo("no valid deals in the file", err=True)
+        raise typer.Exit(2)
+    recs = [Rec(r["id"], r["name"], r["status"], r["amount"], r["campaign"], r["lost_reason"], r["notes"]) for r in rows]
+    typer.echo(json.dumps(analyze(recs, limit), ensure_ascii=False, indent=2, default=str))
 
 
 @app.command("team")

@@ -17,6 +17,7 @@ from ..agents import team as T
 from ..agents.orion import ORION_SYSTEM, Step, plan_schema, single_step, validate_plan
 from ..config import Settings
 from ..crm.hubspot.writeback import HubSpotWriter
+from ..insights import spec
 from ..llm import prompts
 from ..llm.base import LlmClient, LlmError, Usage
 from ..llm.guard import numbers_ok
@@ -27,7 +28,7 @@ from . import actions, repo
 from . import strings_ptbr as S
 from .actions import Reply, audit
 from .gateway import GatewayError, MessagingGateway
-from .router import keyword_route
+from .router import keyword_args, keyword_route
 from .tools import catalog
 
 log = logging.getLogger("omnidata.orchestrator")
@@ -341,12 +342,15 @@ async def _orion(conn: Conn, deps: Deps, p: Principal, text: str) -> Reply:
             conn.commit()
     if steps is None:
         tool = keyword_route(text)  # degraded mode (FR-BOT-7): one specialist, no LLM
+        if tool is None and forced is None and _INSIGHTS_Q.search(text):
+            # "me dá os insights": Orion splits it (Lyra: dores, Altair: demanda, Argus: cobertura)
+            return await run_plan(conn, deps, p, validate_plan(OVERVIEW_PLAN) or [], text)
         if tool is None:
             return _menu()
         if forced and T.TOOL_OWNER[tool] != forced.key:
             owner = T.TEAM[T.TOOL_OWNER[tool]]
             return _sign(forced, Reply(S.NOT_MINE.format(other=owner.name, title=owner.title, hint=owner.examples[0].split(", ")[-1].strip("“”\""))))
-        steps = single_step(tool)
+        steps = single_step(tool, keyword_args(tool, text))
     return await run_plan(conn, deps, p, steps, text)
 
 
@@ -439,10 +443,47 @@ def _read(conn: Conn, p: Principal, tool: str, a: dict[str, Any], today: date): 
         return d, S.tpl_brief
     if tool == "get_data_quality":
         return repo.data_quality(conn, p), S.tpl_quality
+    if tool in INSIGHT_TOOLS:
+        return _insight(conn, p, tool, a)
     if tool == "get_deal":
         found = repo.find_deals(conn, p, a["query"], 1)
         return (_deal_view(found[0]), S.tpl_deal) if found else (None, S.tpl_deal)
     return None, S.tpl_deal
+
+
+INSIGHT_TOOLS = {"get_pains", "get_recurring_terms", "get_demand_types", "get_systems_landscape", "get_segment_insights",
+                 "get_insight_coverage", "get_insight_digest"}
+
+
+def _insight(conn: Conn, p: Principal, tool: str, a: dict[str, Any]) -> tuple[dict[str, Any], Any]:
+    """Company insights (dores, termos, ERPs, demanda, outros). One deterministic analysis, one section per tool."""
+    lim = int(a.get("limit", 6))
+    an = repo.insight_analysis(conn, p, 10)
+    cov = an["coverage"]
+    if tool == "get_pains":
+        return {"deals": cov["deals"], "with_pain": an["pains"]["with_pain"], "low_n": an["pains"]["low_n"], "items": an["pains"]["items"][:lim]}, S.tpl_pains
+    if tool == "get_recurring_terms":
+        return {"deals": cov["deals"], "words": an["terms"]["words"][:lim], "phrases": an["terms"]["phrases"][:lim]}, S.tpl_terms
+    if tool == "get_demand_types":
+        return {"total": an["demand_types"]["total"], "items": an["demand_types"]["items"][:lim]}, S.tpl_demand
+    if tool == "get_systems_landscape":
+        cat = a.get("category", "all")
+        return {"category": cat, "items": (an["systems"]["items"] if cat == "all" else an["systems"][cat])[:lim]}, S.tpl_systems
+    if tool == "get_segment_insights":
+        dim = a.get("dimension", "segment")
+        if dim == "loss_reason":
+            return {"dimension": dim, "lost": an["loss_reasons"]["lost"], "items": an["loss_reasons"]["taxonomy"][:lim]}, S.tpl_segments
+        return {"dimension": dim, "min_segment_deals": spec.MIN_SEGMENT_DEALS, "items": an["segments" if dim == "segment" else "campaigns"]["items"][:lim]}, S.tpl_segments
+    if tool == "get_insight_coverage":
+        return cov, S.tpl_coverage
+    def top(k: str, sub: str) -> Any:
+        return an[k][sub][0] if an[k][sub] else None
+    return {"pain": top("pains", "items"), "demand": top("demand_types", "items"), "system": top("systems", "items")}, S.tpl_digest
+
+
+_INSIGHTS_Q = re.compile(r"\b(insights?|panorama das empresas|radar das empresas)\b", re.IGNORECASE)
+OVERVIEW_PLAN = [{"agent": "lyra", "tool": "get_pains", "args": {}}, {"agent": "altair", "tool": "get_demand_types", "args": {}},
+                 {"agent": "argus", "tool": "get_insight_coverage", "args": {}}]
 
 
 async def _narrate(conn: Conn, deps: Deps, p: Principal, data: dict[str, Any], template: Any, agent: T.Agent | None = None) -> str:

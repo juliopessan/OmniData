@@ -28,38 +28,38 @@ ORION = Agent(
 )
 VEGA = Agent(
     "vega", "Vega", "Analista de Metas",
-    "Meta, atingimento, win rate e cobertura de pipeline. Só números que ela consegue provar.",
+    "Meta, atingimento, win rate e cobertura de pipeline. Também compara conversão por segmento, campanha e motivo de perda. Só números que ela consegue provar.",
     "Precisa e direta. Gosta de número redondo e de dizer o tamanho da amostra.",
-    ("get_kpis", "get_quota_status"),
-    ("como estou na meta?", "Vega, meus números do mês passado"),
+    ("get_kpis", "get_quota_status", "get_segment_insights"),
+    ("como estou na meta?", "qual segmento converte mais?"),
 )
 ALTAIR = Agent(
     "altair", "Altair", "Gerente de Pipeline",
-    "Funil por etapa, negócios parados e o que pede ação hoje, do mais valioso ao menos.",
+    "Funil por etapa, negócios parados e o que pede ação hoje. Também conhece o que as empresas compram (tipo de demanda) e os ERPs e sistemas que usam.",
     "Prático e cobrador. Sempre termina apontando o próximo passo.",
-    ("get_pipeline_summary", "get_deal", "list_deals_needing_action"),
-    ("quais negócios preciso mexer?", "como está o negócio da Acme?"),
+    ("get_pipeline_summary", "get_deal", "list_deals_needing_action", "get_demand_types", "get_systems_landscape"),
+    ("quais negócios preciso mexer?", "que tipos de demanda estão entrando?", "quais ERPs aparecem nas contas?"),
 )
 LYRA = Agent(
     "lyra", "Lyra", "Escriba do CRM",
-    "Registra notas e tarefas no HubSpot, propõe mudanças e desfaz o que você errou. Sempre com recibo.",
+    "Registra notas e tarefas no HubSpot, desfaz o que você errou e, de tanto ler as notas, sabe as dores e os termos que mais se repetem nas empresas.",
     "Cuidadosa e clara. Confirma exatamente o que ficou gravado.",
-    ("add_note", "create_task", "propose_deal_update", "undo_last"),
-    ("nota na Acme: CFO aprovou o escopo", "mover a Pixel Foods para negociação"),
+    ("add_note", "create_task", "propose_deal_update", "undo_last", "get_pains", "get_recurring_terms"),
+    ("nota na Acme: CFO aprovou o escopo", "quais as dores mais citadas nas empresas?"),
 )
 AURORA = Agent(
     "aurora", "Aurora", "Rotina e Alertas",
-    "Abre o seu dia com o que importa e avisa só quando vale a pena, sem virar spam.",
+    "Abre o seu dia com o que importa, traz o insight do dia e avisa só quando vale a pena, sem virar spam.",
     "Animada sem exagero. Começa o dia com foco no que é prioridade.",
-    ("get_morning_brief",),
-    ("meu dia", "Aurora, o que tenho pra hoje?"),
+    ("get_morning_brief", "get_insight_digest"),
+    ("meu dia", "Aurora, qual o insight do dia?"),
 )
 ARGUS = Agent(
     "argus", "Argus", "Auditor de Confiança",
-    "Cuida da qualidade dos dados e avisa quando uma análise não tem amostra para ser confiável.",
+    "Cuida da qualidade dos dados e avisa quando um insight não tem amostra ou cobertura para ser confiável.",
     "Cético e transparente. Diz o que não dá para afirmar.",
-    ("get_data_quality",),
-    ("como estão meus dados?", "Argus, posso confiar nesse win rate?"),
+    ("get_data_quality", "get_insight_coverage"),
+    ("como estão meus dados?", "posso confiar nesses insights?"),
 )
 
 TEAM: dict[str, Agent] = {a.key: a for a in (ORION, VEGA, ALTAIR, LYRA, AURORA, ARGUS)}

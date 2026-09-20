@@ -1,5 +1,6 @@
 import spec from "./dataset-spec.json";
 import type { Deal } from "./seed";
+import type { Rec } from "./insights";
 
 export interface ColumnSpec { name: string; required: boolean; stored: boolean; hint: string; aliases: string[] }
 export interface KindSpec { key: string; title: string; description: string; columns: ColumnSpec[] }
@@ -95,7 +96,7 @@ export function parseDate(v: string): Date | null {
 }
 
 export interface BuiltDeals {
-  deals: Deal[]; probs: Record<string, number>; stageOrder: string[]; total: number; skipped: number;
+  deals: Deal[]; records: Rec[]; probs: Record<string, number>; stageOrder: string[]; total: number; skipped: number;
   errors: RowError[]; missing: string[]; ignored: string[]; lostWithReason: number;
 }
 
@@ -103,7 +104,7 @@ export function buildDeals(text: string): BuiltDeals {
   const kind = KINDS.find((k) => k.key === "deals")!;
   const { headers, rows, total } = parseCsv(text, Infinity);
   const { mapping, ignored, missing } = mapHeaders(kind, headers);
-  const out: BuiltDeals = { deals: [], probs: {}, stageOrder: [], total, skipped: 0, errors: [], missing, ignored, lostWithReason: 0 };
+  const out: BuiltDeals = { deals: [], records: [], probs: {}, stageOrder: [], total, skipped: 0, errors: [], missing, ignored, lostWithReason: 0 };
   if (missing.length) return out;
   const at = (r: string[], c: string) => (c in mapping ? (r[headers.indexOf(mapping[c])] ?? "").trim() : "");
   const seen = new Set<string>();
@@ -128,6 +129,7 @@ export function buildDeals(text: string): BuiltDeals {
       for (const seg of at(r, "notes").split(" | ")) { const m = /^\s*motivo (?:da|de) perda:\s*(.+?)\.?\s*$/i.exec(seg); if (m) { reason = m[1].trim(); break; } }
     if (status !== "lost") reason = null; else if (reason) out.lostWithReason++;
     if (status === "open" && !firstSeen.includes(stage)) firstSeen.push(stage);
+    out.records.push({ id, name, status, amount: amount ?? 0, campaign: at(r, "campaign") || null, reason, notes: at(r, "notes").split(" | ").map((x) => x.trim()).filter(Boolean) });
     out.deals.push({ id, name, owner: at(r, "owner") || "Sem dono", stage, status, amount: amount ?? 0, daysInStage: 0, nextStep: !!next,
       quietDays: 0, overdue: status === "open" && !!close && close.getTime() < now, reason });
   });

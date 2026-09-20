@@ -1,0 +1,312 @@
+{
+  "systems": {
+    "Totvs": {
+      "category": "erp",
+      "aliases": [
+        "totvs",
+        "protheus",
+        "datasul",
+        "microsiga"
+      ]
+    },
+    "SAP": {
+      "category": "erp",
+      "aliases": [
+        "sap",
+        "sap b1",
+        "s4hana",
+        "business one"
+      ]
+    },
+    "Oracle": {
+      "category": "erp",
+      "aliases": [
+        "oracle",
+        "netsuite",
+        "jd edwards"
+      ]
+    },
+    "Sankhya": {
+      "category": "erp",
+      "aliases": [
+        "sankhya"
+      ]
+    },
+    "Omie": {
+      "category": "erp",
+      "aliases": [
+        "omie"
+      ]
+    },
+    "Bling": {
+      "category": "erp",
+      "aliases": [
+        "bling"
+      ]
+    },
+    "Linx": {
+      "category": "erp",
+      "aliases": [
+        "linx"
+      ]
+    },
+    "Conta Azul": {
+      "category": "erp",
+      "aliases": [
+        "conta azul"
+      ]
+    },
+    "Senior": {
+      "category": "erp",
+      "aliases": [
+        "senior sistemas"
+      ]
+    },
+    "ERP (não especificado)": {
+      "category": "erp",
+      "aliases": [
+        "erp"
+      ]
+    },
+    "Salesforce": {
+      "category": "crm",
+      "aliases": [
+        "salesforce"
+      ]
+    },
+    "Zoho": {
+      "category": "crm",
+      "aliases": [
+        "zoho"
+      ]
+    },
+    "Pipedrive": {
+      "category": "crm",
+      "aliases": [
+        "pipedrive"
+      ]
+    },
+    "RD Station": {
+      "category": "crm",
+      "aliases": [
+        "rd station",
+        "rd crm"
+      ]
+    },
+    "HubSpot": {
+      "category": "crm",
+      "aliases": [
+        "hubspot"
+      ]
+    },
+    "Agendor": {
+      "category": "crm",
+      "aliases": [
+        "agendor"
+      ]
+    },
+    "Ploomes": {
+      "category": "crm",
+      "aliases": [
+        "ploomes"
+      ]
+    },
+    "Moskit": {
+      "category": "crm",
+      "aliases": [
+        "moskit"
+      ]
+    }
+  },
+  "painLabels": "(?:dor validada|dor principal|dor identificada|principal dor|dor)\\s*:\\s*([^.;|]+)",
+  "painCues": [
+    "(dificuldade (?:de|em|para) [^.;|]+)",
+    "(falta de [^.;|]+)",
+    "(baixa visibilidade [^.;|]+)",
+    "(retrabalho [^.;|]*)"
+  ],
+  "rolePatterns": {
+    "won_against": "ganhamos contra ([^:.;|]+)",
+    "internal": "solu[cç][aã]o interna\\s*\\(([^)]+)\\)"
+  },
+  "lossTaxonomy": [
+    {
+      "code": "internal_solution",
+      "label": "Solução interna",
+      "keywords": [
+        "solucao interna"
+      ]
+    },
+    {
+      "code": "price",
+      "label": "Preço",
+      "keywords": [
+        "preco",
+        "caro",
+        "desconto"
+      ]
+    },
+    {
+      "code": "budget_timing",
+      "label": "Orçamento/timing",
+      "keywords": [
+        "orcamento",
+        "adiado",
+        "proximo ano",
+        "timing",
+        "sem budget"
+      ]
+    },
+    {
+      "code": "champion_lost",
+      "label": "Perdi o champion",
+      "keywords": [
+        "decisor saiu",
+        "champion",
+        "sponsor saiu"
+      ]
+    },
+    {
+      "code": "no_decision",
+      "label": "Sem decisão/sumiu",
+      "keywords": [
+        "sem resposta",
+        "sumiu",
+        "sem decisao",
+        "parou de responder"
+      ]
+    },
+    {
+      "code": "product_fit",
+      "label": "Produto não atende",
+      "keywords": [
+        "escopo",
+        "nao aderente",
+        "funcionalidade",
+        "nao atende"
+      ]
+    },
+    {
+      "code": "competitor",
+      "label": "Concorrente",
+      "keywords": [
+        "concorrente",
+        "perdemos para",
+        "optou por"
+      ]
+    }
+  ],
+  "stopwords": [
+    "agendada",
+    "agendado",
+    "ainda",
+    "amanha",
+    "anexa",
+    "anexo",
+    "ano",
+    "anos",
+    "antes",
+    "apenas",
+    "apos",
+    "aqui",
+    "ate",
+    "bem",
+    "cliente",
+    "clientes",
+    "com",
+    "como",
+    "concluida",
+    "concluido",
+    "confirmada",
+    "confirmado",
+    "contato",
+    "contra",
+    "das",
+    "demais",
+    "depois",
+    "desde",
+    "dias",
+    "documentos",
+    "dos",
+    "durante",
+    "empresa",
+    "entre",
+    "enviada",
+    "enviado",
+    "essa",
+    "esse",
+    "esta",
+    "estao",
+    "estava",
+    "este",
+    "estimada",
+    "estimado",
+    "final",
+    "foi",
+    "ganhamos",
+    "havia",
+    "hoje",
+    "isso",
+    "mail",
+    "mais",
+    "menos",
+    "mes",
+    "mesmo",
+    "motivo",
+    "muito",
+    "nas",
+    "negocio",
+    "nos",
+    "para",
+    "pela",
+    "pelas",
+    "pelo",
+    "pelos",
+    "percebido",
+    "perda",
+    "porque",
+    "pouco",
+    "primeira",
+    "primeiro",
+    "proxima",
+    "proximo",
+    "quando",
+    "que",
+    "referente",
+    "referentes",
+    "segue",
+    "segunda",
+    "segundo",
+    "sem",
+    "semana",
+    "ser",
+    "sera",
+    "sobre",
+    "tambem",
+    "tem",
+    "time",
+    "tinha",
+    "total",
+    "uma",
+    "umas",
+    "uns",
+    "vai",
+    "valor",
+    "vao",
+    "whatsapp"
+  ],
+  "minSegmentDeals": 8,
+  "demandSplit": "\\s[–—-]\\s",
+  "demandBracket": "\\[([^\\[\\]]+)\\]?\\s*$",
+  "companySplit": "\\s*<>\\s*",
+  "mention": "@[^\\s@.;,]+(?:\\s+[A-ZÀ-Ú][^\\s@.;,]*)?",
+  "owners": {
+    "pains": "lyra",
+    "terms": "lyra",
+    "demand": "altair",
+    "systems": "altair",
+    "other": "vega",
+    "coverage": "argus",
+    "digest": "aurora"
+  }
+}

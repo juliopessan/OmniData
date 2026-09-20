@@ -130,3 +130,84 @@ def tpl_team(members: list[tuple[str, str, str]]) -> str:
 NOT_MINE = "Isso não é comigo. Fale com *{other}* ({title}): “{other}, {hint}”."
 NICK_OK = "Combinado, {nick}. É assim que a equipe te chama daqui em diante."
 AGENT_INTRO = "{name} aqui, {title}. {tagline} Exemplo: “{example}”."
+
+
+# ---- insights de empresas ----
+NO_INSIGHT = "Ainda não tenho dados suficientes para esse insight. Envie negócios com notas em Datasets ou conecte o HubSpot."
+CAUTION_OUTCOME = "Termos como “contrato assinado” descrevem o resultado, não a causa."
+
+
+def _cov(v: float | None) -> str:
+    return "—" if v is None else pct(v, 0)
+
+
+def tpl_pains(d: dict[str, Any]) -> str:
+    items = d.get("items", [])
+    if not items:
+        return NO_INSIGHT
+    lines = " · ".join(f"{i}. {x['pain']} ({x['deals']})" for i, x in enumerate(items[:5], 1))
+    warn = " Amostra pequena: trate como indicativo." if d.get("low_n") else ""
+    return f"Dores mais citadas ({d['with_pain']} de {d['deals']} negócios têm dor registrada): {lines}.{warn}"
+
+
+def tpl_terms(d: dict[str, Any]) -> str:
+    ph, w = d.get("phrases", []), d.get("words", [])
+    if not ph and not w:
+        return NO_INSIGHT
+    words = ", ".join(f"{x['term']} ({x['deals']})" for x in w[:6])
+    phrases = ", ".join(f"{x['term']} ({x['deals']})" for x in ph[:4])
+    return f"Termos que mais se repetem nas notas: {words}. Frases: {phrases}. {CAUTION_OUTCOME}"
+
+
+def tpl_demand(d: dict[str, Any]) -> str:
+    items = d.get("items", [])
+    if not items:
+        return NO_INSIGHT
+    lines = " · ".join(f"{x['key']}: {x['deals']} negócios, {brl(x['open_amount'])} em aberto" + (f", ganho {pct(x['win_rate'], 0)}" if x.get("win_rate") is not None else "")
+                       for x in items[:5])
+    return f"Tipos de demanda: {lines}."
+
+
+def tpl_systems(d: dict[str, Any]) -> str:
+    items = d.get("items", [])
+    if not items:
+        return NO_INSIGHT
+    lines = " · ".join(f"{x['system']} ({'ERP' if x['category'] == 'erp' else 'CRM/vendas'}): {x['deals']} negócios" + (f", ganhamos contra em {x['won_against']}" if x.get("won_against") else "")
+                       for x in items[:6])
+    return f"Sistemas citados nas contas: {lines}."
+
+
+def tpl_segments(d: dict[str, Any]) -> str:
+    items = d.get("items", [])
+    if not items and d.get("dimension") == "segment":
+        return (f"Não identifiquei segmentos: nenhuma palavra final dos nomes de empresa se repete em pelo menos {d.get('min_segment_deals', 8)} negócios. "
+                "Tente por campanha ou por motivo de perda.")
+    if not items:
+        return NO_INSIGHT
+    if d.get("dimension") == "loss_reason":
+        return "Motivos de perda: " + " · ".join(f"{x['label']}: {x['deals']}" for x in items[:6]) + "."
+    dim = "Campanhas" if d.get("dimension") == "campaign" else "Segmentos"
+    lines = " · ".join(f"{x['key']}: {x['deals']} negócios" + (f", ganho {pct(x['win_rate'], 0)}" if x.get("win_rate") is not None else "") + (" (amostra pequena)" if x.get("low_n") else "")
+                       for x in items[:5])
+    return f"{dim} por volume: {lines}."
+
+
+def tpl_coverage(d: dict[str, Any]) -> str:
+    if not d.get("deals"):
+        return NO_INSIGHT
+    parts = [f"notas {_cov(d.get('with_notes'))}", f"dor {_cov(d.get('with_pain'))}", f"sistema {_cov(d.get('with_system'))}", f"demanda {_cov(d.get('with_demand_type'))}",
+             f"segmento {_cov(d.get('with_segment'))}", f"campanha {_cov(d.get('with_campaign'))}"]
+    weak = [n for n, v in (("dores", d.get("with_pain")), ("sistemas", d.get("with_system"))) if v is not None and v < 0.3]
+    tail = f" Cuidado: {' e '.join(weak)} aparecem em poucas notas, então o ranking mostra o que foi anotado, não o mercado todo." if weak else ""
+    return f"Cobertura dos {d['deals']} negócios: {', '.join(parts)}.{tail}"
+
+
+def tpl_digest(d: dict[str, Any]) -> str:
+    bits = []
+    if d.get("pain"):
+        bits.append(f"dor mais citada: {d['pain']['pain']} ({d['pain']['deals']} negócios)")
+    if d.get("demand"):
+        bits.append(f"demanda que mais aparece: {d['demand']['key']} ({d['demand']['deals']})")
+    if d.get("system"):
+        bits.append(f"sistema mais citado: {d['system']['system']} ({d['system']['deals']})")
+    return ("Insight do dia — " + "; ".join(bits) + ".") if bits else NO_INSIGHT

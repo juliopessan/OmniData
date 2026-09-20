@@ -33,11 +33,11 @@ Nada acima foi exercitado contra HubSpot, Meta ou LLM reais: veja **[docs/go-liv
 | Membro | Função | Ferramentas |
 |---|---|---|
 | **Orion** | Coordenador: analisa o pedido, monta o plano (≤ 3 passos) e devolve uma resposta só | — |
-| **Vega** | Analista de Metas | `get_kpis`, `get_quota_status` |
-| **Altair** | Gerente de Pipeline | `get_pipeline_summary`, `get_deal`, `list_deals_needing_action` |
-| **Lyra** | Escriba do CRM (recibo + Desfazer) | `add_note`, `create_task`, `propose_deal_update`, `undo_last` |
-| **Aurora** | Rotina e Alertas | `get_morning_brief` |
-| **Argus** | Auditor de Confiança | `get_data_quality` |
+| **Vega** | Analista de Metas e segmentos | `get_kpis`, `get_quota_status`, `get_segment_insights` |
+| **Altair** | Gerente de Pipeline, demanda e ERPs | `get_pipeline_summary`, `get_deal`, `list_deals_needing_action`, `get_demand_types`, `get_systems_landscape` |
+| **Lyra** | Escriba do CRM e leitora de notas (dores, termos) | `add_note`, `create_task`, `propose_deal_update`, `undo_last`, `get_pains`, `get_recurring_terms` |
+| **Aurora** | Rotina, alertas e insight do dia | `get_morning_brief`, `get_insight_digest` |
+| **Argus** | Auditor de Confiança | `get_data_quality`, `get_insight_coverage` |
 
 O LLM só *propõe* o plano; o código valida (allowlist por especialista, no máximo 1 escrita e por último). Endereçamento direto: “Vega, como estou na meta?”. `uv run omnidata team` lista a equipe; `team export` gera `web/src/lib/team.json` (um teste garante a sincronia).
 
@@ -47,6 +47,8 @@ O LLM só *propõe* o plano; o código valida (allowlist por especialista, no m�
 
 - **Upload:** `/dashboard/datasets` (arrastar-e-soltar, prévia, relatório de erros por linha) ou `uv run omnidata dataset import arquivo.csv --kind deals --apply`. Reconhece a exportação do HubSpot em pt-BR, tira ganho/perdido da etapa e o motivo de perda das notas. Detalhes em [docs/datasets.md](docs/datasets.md).
 - **Airbyte:** HubSpot e outras fontes aterrissam no Postgres e o OmniData mapeia para o `silver` (`INGEST_MODE=airbyte`). O cliente próprio do HubSpot continua sendo o padrão e o único que escreve no CRM. Guia em [docs/airbyte.md](docs/airbyte.md).
+
+**Insights de empresas** (`/dashboard/insights`, `omnidata insights analyze <arquivo>`): dores, termos recorrentes, ERPs/CRMs, tipo de demanda, segmentos e campanhas, extraídos das notas e dos nomes dos negócios por contagem determinística (sem LLM). Lyra cuida de dores e termos, Altair de demanda e ERPs, Vega de segmentos, Argus da cobertura e Aurora do insight do dia; o Orion junta tudo num pedido amplo. Cada bloco mostra a cobertura, e associações são correlação, nunca causa. Entende o export do HubSpot (`Cliente<>Parceiro [Demanda]`) e o formato `Empresa – Demanda`.
 
 ## Estrutura
 

@@ -2,11 +2,12 @@
 import { useMemo, useSyncExternalStore } from "react";
 import { computeMetrics, computeMetricsFor, type Ctx } from "./metrics";
 import type { Deal } from "./seed";
+import type { Rec } from "./insights";
 
 /** Dados enviados na página de datasets, guardados SÓ neste navegador (localStorage). Nada vai para servidor nenhum. */
 const KEY = "omnidata:upload:deals:v1";
 const EVT = "omnidata:upload";
-export interface Stored { filename: string; savedAt: string; deals: Deal[]; probs: Record<string, number>; stageOrder: string[] }
+export interface Stored { filename: string; savedAt: string; deals: Deal[]; records?: Rec[]; probs: Record<string, number>; stageOrder: string[] }
 
 let lastRaw: string | null = null, lastVal: Stored | null = null;
 function read(): Stored | null {

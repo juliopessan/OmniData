@@ -14,6 +14,20 @@ class NoArgs(BaseModel):
     pass
 
 
+class InsightLimit(BaseModel):
+    limit: int = Field(default=5, ge=1, le=10)
+
+
+class SystemsArgs(BaseModel):
+    category: Literal["erp", "crm", "all"] = "all"
+    limit: int = Field(default=6, ge=1, le=10)
+
+
+class SegmentArgs(BaseModel):
+    dimension: Literal["segment", "campaign", "loss_reason"] = "segment"
+    limit: int = Field(default=5, ge=1, le=10)
+
+
 class GetDeal(BaseModel):
     query: str = Field(min_length=2, max_length=120)
 
@@ -51,12 +65,19 @@ TOOLS: dict[str, tuple[type[BaseModel], str]] = {
     "list_deals_needing_action": (ListNeedingAction, "Negócios que mais pedem atenção agora."),
     "get_morning_brief": (NoArgs, "Resumo do dia: meta e negócios prioritários."),
     "get_data_quality": (NoArgs, "Qualidade dos dados: próximo passo, motivos de perda e confiança das análises."),
+    "get_pains": (InsightLimit, "Dores das empresas mais citadas nas notas dos negócios."),
+    "get_recurring_terms": (InsightLimit, "Termos e frases que mais se repetem nas notas, com a taxa de ganho associada."),
+    "get_demand_types": (InsightLimit, "Tipos de demanda (o que as empresas compram): negócios, valor em aberto e conversão."),
+    "get_systems_landscape": (SystemsArgs, "ERPs e outros sistemas citados nas contas, com quantos negócios e contra quem se ganhou."),
+    "get_segment_insights": (SegmentArgs, "Outros insights: conversão por segmento, por campanha ou motivos de perda."),
+    "get_insight_coverage": (NoArgs, "Cobertura dos dados por insight: quanto do que foi dito é sustentado pelas notas."),
+    "get_insight_digest": (NoArgs, "Insight do dia: dor, demanda e sistema mais frequentes."),
     "add_note": (AddNote, "Registrar uma nota em um negócio."),
     "create_task": (CreateTask, "Criar uma tarefa em um negócio."),
     "propose_deal_update": (ProposeDealUpdate, "Propor alteração de etapa, data de fechamento ou valor (exige confirmação)."),
     "undo_last": (UndoLast, "Desfazer a última ação registrada (até 24h)."),
 }
-READ_TOOLS = {"get_kpis", "get_quota_status", "get_pipeline_summary", "get_deal", "list_deals_needing_action", "get_morning_brief", "get_data_quality"}
+READ_TOOLS = {"get_kpis", "get_quota_status", "get_pipeline_summary", "get_deal", "list_deals_needing_action", "get_morning_brief", "get_data_quality", "get_pains", "get_recurring_terms", "get_demand_types", "get_systems_landscape", "get_segment_insights", "get_insight_coverage", "get_insight_digest"}
 
 
 def schemas() -> list[dict[str, Any]]:

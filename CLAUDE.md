@@ -6,6 +6,7 @@ Purpose: WhatsApp sales assistant on a HubSpot-fed Postgres store. Source of tru
 - Harness (ADR 0003): `agents/team.py` (roster + tool allowlists = source of truth; `omnidata team export > web/src/lib/team.json`), `agents/orion.py` (plan validation).
 - Bot (M1): `bot/` (orchestrator, actions, repo, gateway, webhook), `llm/` (chat: anthropic|openai; `transcribe.py`: OpenAI speech-to-text, ADR 0004; no Azure), `alerts/`, `api/`, `jobs/worker.py`; gold/serving are SQL views (ADR 0002).
 - Data in: `datasets/` (CSV/XLSX upload, one canonical importer, ADR 0005), `integrations/airbyte/` (Airbyte landing + generic mapping, ADR 0006), `api/datasets.py`. Regenerate the web spec: `omnidata dataset spec > web/src/lib/dataset-spec.json`.
+- Insights: `insights/` (spec + compute, puro e determinístico; `omnidata insights spec > web/src/lib/insights-spec.json`), views `serving.v_deal_facts|v_deal_notes` (0009), 7 tools `get_pains…get_insight_digest`; port TS em `web/src/lib/insights.ts` (mesmo spec).
 - `web/` Next.js front-end (landing, auth, dashboard) with the Ledger design system; synthetic data only.
 
 ## Commands
@@ -14,6 +15,7 @@ Purpose: WhatsApp sales assistant on a HubSpot-fed Postgres store. Source of tru
 - make migrate    # apply supabase/migrations  (uv run omnidata db migrate)
 - omnidata audit | omnidata audit properties | omnidata ingest backfill | omnidata ingest incremental | omnidata dev seed
 - omnidata dataset import|template|spec | omnidata airbyte connections|sync|ingest|generic
+- omnidata insights spec|analyze <file>
 - omnidata db backup | omnidata db size-report
 - Tests need Postgres: `TEST_DATABASE_URL=postgresql://postgres@127.0.0.1:54399/omnidata_test` (DB tests skip if unreachable)
 - web: `cd web && npm install && npm run dev`

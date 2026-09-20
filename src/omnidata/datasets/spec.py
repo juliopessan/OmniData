@@ -73,7 +73,7 @@ STAGE_RANKS: tuple[tuple[str, int], ...] = (
     (r"qualific", 1), (r"descoberta|discovery", 2), (r"reuni|meeting", 3), (r"apresent|demo|presentation", 4),
     (r"propost|proposal", 5), (r"negocia|negotiat", 6), (r"contrat|contract|jurid|legal|assinat", 7),
 )
-WON_RE = re.compile(r"\b(fechado ganho|closed won|ganho|ganha|won)\b")
+WON_RE = re.compile(r"\b(fechado ganho|negocio fechado|closed won|ganho|ganha|won)\b")
 LOST_RE = re.compile(r"\b(fechado perdido|closed lost|perdido|perdida|lost)\b")
 STATUS_WORDS = {"aberto": "open", "open": "open", "ganho": "won", "won": "won", "ganha": "won", "perdido": "lost", "lost": "lost", "perdida": "lost"}
 

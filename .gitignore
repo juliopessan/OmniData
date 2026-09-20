@@ -7,3 +7,9 @@ __pycache__/
 .ruff_cache/
 backups/
 reports/
+
+# Dados reais: nunca versionar (PII de clientes)
+data/
+*.local.csv
+*.local.xlsx
+web/public/samples/_*

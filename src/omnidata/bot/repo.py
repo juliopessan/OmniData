@@ -109,3 +109,20 @@ def data_quality(conn: Conn, p: Principal) -> dict[str, Any]:
     o, n, lost, rs = (int(r[k]) for k in ("o", "n", "l", "r"))
     return {"open_deals": o, "pct_next_step": (n / o) if o else None, "lost_deals": lost,
             "pct_lost_with_reason": (rs / lost) if lost else None, "reason_target": 0.8}
+
+
+def insight_analysis(conn: Conn, p: Principal, limit: int = 10) -> dict[str, Any]:
+    """Company insights over the deals (and their notes) this principal can see. Read-only, serving.* only."""
+    from ..insights.compute import Rec, analyze
+    clause, params = p.owner_clause()
+    with conn.cursor() as cur:
+        cur.execute(f"select hs_deal_id, name, amount, is_won, is_lost, campaign, lost_reason from serving.v_deal_facts where {clause} limit 50000", params)
+        deals = cur.fetchall()
+        cur.execute(f"select hs_deal_id, note from serving.v_deal_notes where {clause}", params)
+        notes = cur.fetchall()
+    by: dict[str, list[str]] = {}
+    for n in notes:
+        by.setdefault(n["hs_deal_id"], []).append(n["note"])
+    recs = [Rec(d["hs_deal_id"], d["name"] or "", "won" if d["is_won"] else "lost" if d["is_lost"] else "open", d["amount"], d["campaign"],
+                d["lost_reason"], by.get(d["hs_deal_id"], [])) for d in deals]
+    return analyze(recs, limit)
