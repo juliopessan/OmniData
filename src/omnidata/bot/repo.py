@@ -1,11 +1,13 @@
 """Read repositories: serving.* only, ALWAYS scoped by Principal (FR-BOT-2). No function takes an owner id from callers."""
 from __future__ import annotations
 
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from typing import Any
+from zoneinfo import ZoneInfo
 
 import psycopg
 
+from ..config import get_settings
 from ..metrics import wilson
 from ..security.principal import Principal
 
@@ -126,3 +128,17 @@ def insight_analysis(conn: Conn, p: Principal, limit: int = 10) -> dict[str, Any
     recs = [Rec(d["hs_deal_id"], d["name"] or "", "won" if d["is_won"] else "lost" if d["is_lost"] else "open", d["amount"], d["campaign"],
                 d["lost_reason"], by.get(d["hs_deal_id"], [])) for d in deals]
     return analyze(recs, limit)
+
+
+def fix_queue(conn: Conn, p: Principal, limit: int = 8, today: date | None = None) -> dict[str, Any]:
+    """Open deals with data gaps for this principal (Coach). Read-only, serving.* only; managers/admins also see owner-level items."""
+    from ..hygiene.compute import Deal
+    from ..hygiene.compute import fix_queue as build
+    clause, params = p.owner_clause()
+    with conn.cursor() as cur:
+        cur.execute("select hs_deal_id, name, amount, hs_owner_id, owner_active, close_date, next_activity_at, note_count "
+                    f"from serving.v_hygiene_facts where {clause} limit 50000", params)
+        rows = cur.fetchall()
+    deals = [Deal(r["hs_deal_id"], r["name"] or "", r["amount"], r["hs_owner_id"], r["owner_active"], r["close_date"], r["next_activity_at"], int(r["note_count"] or 0))
+             for r in rows]
+    return build(deals, today or datetime.now(ZoneInfo(get_settings().app_timezone)).date(), is_manager=p.role != "rep", limit=limit)

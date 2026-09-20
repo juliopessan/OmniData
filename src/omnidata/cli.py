@@ -35,7 +35,9 @@ airbyte_app = typer.Typer(no_args_is_help=True, help="Airbyte connector layer (d
 app.add_typer(dataset_app, name="dataset")
 insights_app = typer.Typer(no_args_is_help=True, help="Company insights (dores, termos, ERPs, demanda)")
 app.add_typer(airbyte_app, name="airbyte")
+hygiene_app = typer.Typer(no_args_is_help=True, help="Data hygiene: the Coach's fix queue")
 app.add_typer(insights_app, name="insights")
+app.add_typer(hygiene_app, name="hygiene")
 
 
 @dataset_app.command("import")
@@ -189,6 +191,34 @@ def insights_analyze(file: Path, limit: int = 8) -> None:
         raise typer.Exit(2)
     recs = [Rec(r["id"], r["name"], r["status"], r["amount"], r["campaign"], r["lost_reason"], r["notes"]) for r in rows]
     typer.echo(json.dumps(analyze(recs, limit), ensure_ascii=False, indent=2, default=str))
+
+
+@hygiene_app.command("spec")
+def hygiene_spec() -> None:
+    """JSON shared with the web UI: `omnidata hygiene spec > web/src/lib/hygiene-spec.json`."""
+    import json
+
+    from .hygiene.spec import spec_json
+    typer.echo(json.dumps(spec_json(), ensure_ascii=False, indent=2))
+
+
+@hygiene_app.command("analyze")
+def hygiene_analyze(file: Path, limit: int = 8, manager: bool = typer.Option(True, help="include owner-level items")) -> None:
+    """Fix queue for a deals CSV/XLSX (no database needed)."""
+    import json
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+
+    from .datasets.parse import read_table
+    from .datasets.spec import DEALS
+    from .datasets.validate import validate
+    from .hygiene.compute import Deal, fix_queue
+    data = file.read_bytes()
+    rep, rows = validate(DEALS, read_table(data, file.name), file.name, data)
+    deals = [Deal(r["id"], r["name"], r["amount"], r["owner"], "deactivated" not in (r["owner"] or "").lower(), r["close_date"], r["next_activity"], len(r["notes"]))
+             for r in rows if r["status"] == "open"]
+    today = datetime.now(ZoneInfo(get_settings().app_timezone)).date()
+    typer.echo(json.dumps(fix_queue(deals, today, is_manager=manager, limit=limit), ensure_ascii=False, indent=2, default=str))
 
 
 @app.command("team")

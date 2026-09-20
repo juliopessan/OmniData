@@ -5,6 +5,7 @@ import re
 import unicodedata
 
 _RULES: list[tuple[str, re.Pattern[str]]] = [
+    ("get_fix_queue", re.compile(r"\b(corrigir|correcao|correcoes|preencher|arrumar|higiene|fila de correcao|o que (esta )?faltando|dados faltando)\b")),
     ("get_insight_digest", re.compile(r"\b(insight do dia|insight de hoje|destaque do dia)\b")),
     ("get_insight_coverage", re.compile(r"\b(cobertura|confiar nos insights?|insights? confiaveis?)\b")),
     ("get_pains", re.compile(r"\b(dores?|dificuldades? das empresas|problemas? das empresas)\b")),

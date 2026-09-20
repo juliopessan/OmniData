@@ -213,3 +213,31 @@ def tpl_digest(d: dict[str, Any]) -> str:
     if d.get("system"):
         bits.append(f"sistema mais citado: {d['system']['system']} ({d['system']['deals']})")
     return ("Insight do dia — " + "; ".join(bits) + ".") if bits else NO_INSIGHT
+
+
+_FIX_WHY = {"no_amount": "sem valor o negócio some da previsão", "close_date_past": "com a data vencida ele parece atrasado sem estar",
+            "no_next_step": "sem próximo passo ninguém sabe o que fazer", "no_notes": "sem nota o histórico se perde",
+            "name_format": "o padrão do nome alimenta os insights"}
+
+
+def tpl_fix_queue(d: dict[str, Any]) -> str:
+    if not d.get("open_deals"):
+        return NO_DATA
+    head = f"{d['clean']} de {d['open_deals']} negócios abertos estão completos."
+    sys_lbl = [i["label"].lower() for i in d.get("issues", []) if i.get("systemic")]
+    lines = []
+    if sys_lbl:
+        lines.append("Atenção: " + ", ".join(sys_lbl) + " aparece em quase todos os negócios. Pode ser do export ou um padrão do CRM, então confira antes de cobrar cada vendedor.")
+    q = d.get("queue") or []
+    if q:
+        lines.append(f"Comece por estes ({len(q)} de {d.get('queue_total', len(q))}):")
+        lines += [f"• {r['name']}{' (' + brl(r['amount']) + ')' if r.get('amount') else ''}: {r['first_fix']}" for r in q]
+        top = q[0]["issues"][0]
+        if top in _FIX_WHY:
+            lines.append(f"Por quê: {_FIX_WHY[top]}. Se quiser, peça à Lyra para registrar, por exemplo “Lyra, nota na {q[0]['name'].split(' [')[0]}: …”.")
+    m = d.get("manager") or {}
+    if m.get("owner_inactive"):
+        lines.append(f"Para o gestor: {len(m['owner_inactive'])} negócio(s) com dono desativado, para redistribuir.")
+    if m.get("duplicates"):
+        lines.append(f"Para o gestor: {len(m['duplicates'])} nome(s) possivelmente duplicado(s).")
+    return "\n".join([head, *lines]) if lines else head + " Nada a corrigir agora."

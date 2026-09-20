@@ -203,6 +203,7 @@ td .sub { display: block; font-size: 12px; color: var(--ink-soft); }
 /* Observatório (equipe) */
 .team { display: grid; grid-template-columns: repeat(3, 1fr); border-top: 1px solid var(--rule); border-left: 1px solid var(--rule); }
 .member { padding: 24px; border-right: 1px solid var(--rule); border-bottom: 1px solid var(--rule); display: flex; flex-direction: column; gap: 16px; }
+.member.lead { grid-column: 1 / -1; flex-direction: row; align-items: flex-start; } /* Orion, quem coordena os seis especialistas */
 .mono-tile { width: 40px; height: 40px; display: grid; place-items: center; background: var(--ink); color: var(--paper); font-weight: 800; font-size: 16px; letter-spacing: -0.03em; border-radius: 6px; }
 @media (max-width: 900px) { .team { grid-template-columns: 1fr 1fr; } }
 @media (max-width: 560px) { .team { grid-template-columns: 1fr; } }

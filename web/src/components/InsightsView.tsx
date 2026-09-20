@@ -5,22 +5,11 @@ import { Eyebrow, Fig, Flag, Measured } from "./Ledger";
 import { SourceBanner } from "./DashViews";
 import { analyze, type Group } from "@/lib/insights";
 import { brl, pct } from "@/lib/metrics";
-import { TEAM } from "@/lib/team";
+import { AgentTag } from "./AgentTag";
 import { useStored } from "@/lib/upload-store";
 
 const fmt = (n: number) => n.toLocaleString("pt-BR");
 const p0 = (v: number | null) => (v === null ? "—" : pct(v, 0));
-
-/** Quem cuida de cada insight: o cadastro da equipe vem do back-end (team.json). */
-function AgentTag({ k }: { k: string }) {
-  const m = TEAM.members.find((x) => x.key === k)!;
-  return (
-    <Link href="/dashboard/equipe" className="agent-tag" title={m.tagline}>
-      <span className="mono-tile sm" aria-hidden="true">{m.name.slice(0, 2)}</span>
-      <span><b>{m.name}</b> · {m.title}</span>
-    </Link>
-  );
-}
 
 const Mini = ({ v }: { v: number }) => <span className="minibar" aria-hidden="true"><i style={{ width: `${Math.round(v * 100)}%` }} /></span>;
 

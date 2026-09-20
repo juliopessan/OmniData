@@ -97,6 +97,20 @@
         "como estão meus dados?",
         "posso confiar nesses insights?"
       ]
+    },
+    {
+      "key": "polaris",
+      "name": "Polaris",
+      "title": "Coach de Qualidade",
+      "tagline": "Transforma a auditoria do Argus em uma fila curta do que corrigir, por vendedor e por valor, e explica por que cada campo importa. Quem grava a correção é a Lyra, com a sua confirmação.",
+      "persona": "Paciente e prático. Dá um passo por vez e não cobra o que pode ser problema do export.",
+      "tools": [
+        "get_fix_queue"
+      ],
+      "examples": [
+        "o que preciso corrigir nos meus negócios?",
+        "Polaris, por onde começo a arrumar o CRM?"
+      ]
     }
   ]
 }

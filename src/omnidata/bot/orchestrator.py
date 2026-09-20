@@ -445,6 +445,8 @@ def _read(conn: Conn, p: Principal, tool: str, a: dict[str, Any], today: date): 
         return repo.data_quality(conn, p), S.tpl_quality
     if tool in INSIGHT_TOOLS:
         return _insight(conn, p, tool, a)
+    if tool == "get_fix_queue":
+        return repo.fix_queue(conn, p, int(a.get("limit", 5))), S.tpl_fix_queue
     if tool == "get_deal":
         found = repo.find_deals(conn, p, a["query"], 1)
         return (_deal_view(found[0]), S.tpl_deal) if found else (None, S.tpl_deal)

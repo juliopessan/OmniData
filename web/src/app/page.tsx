@@ -28,7 +28,7 @@ export default function Home() {
             <Eyebrow>Observatório · inteligência de vendas no WhatsApp</Eyebrow>
             <h1 className="display">Seu time não abre o CRM. Mas <span className="voice">responde</span> o WhatsApp.</h1>
             <p className="lede">
-              Conheça o Observatório: seis assessores de IA que vivem na conversa do seu vendedor, atualizam o HubSpot por ele
+              Conheça o Observatório: sete assessores de IA que vivem na conversa do seu vendedor, atualizam o HubSpot por ele
               e avisam o que precisa de ação antes que o negócio esfrie.
             </p>
             <div className="actions">

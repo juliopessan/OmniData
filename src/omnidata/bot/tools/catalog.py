@@ -71,13 +71,14 @@ TOOLS: dict[str, tuple[type[BaseModel], str]] = {
     "get_systems_landscape": (SystemsArgs, "ERPs e outros sistemas citados nas contas, com quantos negócios e contra quem se ganhou."),
     "get_segment_insights": (SegmentArgs, "Outros insights: conversão por segmento, por campanha ou motivos de perda."),
     "get_insight_coverage": (NoArgs, "Cobertura dos dados por insight: quanto do que foi dito é sustentado pelas notas."),
+    "get_fix_queue": (InsightLimit, "Fila de correção dos dados: negócios abertos com lacunas (valor, data vencida, próximo passo, nota, nome) e quem corrige."),
     "get_insight_digest": (NoArgs, "Insight do dia: dor, demanda e sistema mais frequentes."),
     "add_note": (AddNote, "Registrar uma nota em um negócio."),
     "create_task": (CreateTask, "Criar uma tarefa em um negócio."),
     "propose_deal_update": (ProposeDealUpdate, "Propor alteração de etapa, data de fechamento ou valor (exige confirmação)."),
     "undo_last": (UndoLast, "Desfazer a última ação registrada (até 24h)."),
 }
-READ_TOOLS = {"get_kpis", "get_quota_status", "get_pipeline_summary", "get_deal", "list_deals_needing_action", "get_morning_brief", "get_data_quality", "get_pains", "get_recurring_terms", "get_demand_types", "get_systems_landscape", "get_segment_insights", "get_insight_coverage", "get_insight_digest"}
+READ_TOOLS = {"get_kpis", "get_quota_status", "get_pipeline_summary", "get_deal", "list_deals_needing_action", "get_morning_brief", "get_data_quality", "get_pains", "get_recurring_terms", "get_demand_types", "get_systems_landscape", "get_segment_insights", "get_insight_coverage", "get_insight_digest", "get_fix_queue"}
 
 
 def schemas() -> list[dict[str, Any]]:

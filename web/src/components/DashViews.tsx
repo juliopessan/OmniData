@@ -3,8 +3,11 @@ import Link from "next/link";
 import { Bar, Eyebrow, Fig, Flag, Measured } from "./Ledger";
 import { SpinVerb } from "./SpinVerb";
 import { brl, pad2, pct } from "@/lib/metrics";
-import { clearStored, useDashboardData } from "@/lib/upload-store";
-import { MIN_N_RANKING, PERIOD } from "@/lib/seed";
+import { useMemo } from "react";
+import { AgentTag } from "./AgentTag";
+import { fixQueue } from "@/lib/hygiene";
+import { clearStored, useDashboardData, useStored } from "@/lib/upload-store";
+import { MIN_N_RANKING, PERIOD, deals as SEED_DEALS } from "@/lib/seed";
 
 /** Diz de onde vêm os números: exemplo sintético ou o arquivo enviado (só neste navegador). */
 export function SourceBanner() {
@@ -147,10 +150,54 @@ export function QualidadeView() {
           {m.lostNoReason.slice(0, 8).map((d) => d.id).join(", ")}{m.lostNoReason.length > 8 ? ` e mais ${m.lostNoReason.length - 8}` : ""} não têm motivo de perda. Enquanto isso, análises por motivo são consideradas não verificadas.
         </Flag>
       )}
+      <FixQueuePanel />
       <div className="ledger"><Measured k="Como reproduzir">
         {source === "upload" ? <>Calculado no seu navegador a partir do arquivo enviado. No servidor, <code>omnidata audit</code> faz a mesma leitura sobre o banco.</>
                              : <>Rode <code>omnidata audit</code> contra o HubSpot para substituir estes números sintéticos pelos reais (M0). Aqui a decisão é derivada de <code>seed.ts</code>.</>}
       </Measured></div>
     </>
+  );
+}
+
+
+/** O que corrigir: fila do Coach (Polaris), calculada no navegador. Quem grava a correção é a Lyra, no WhatsApp. */
+function FixQueuePanel() {
+  const stored = useStored();
+  const deals = stored?.deals ?? SEED_DEALS;
+  const q = useMemo(() => fixQueue(deals, stored?.records), [deals, stored]);
+  if (!q.openDeals) return null;
+  const sysLabels = q.issues.filter((i) => i.systemic).map((i) => i.label.toLowerCase());
+  return (
+    <section className="panel" style={{ marginTop: 28 }}>
+      <div className="panel-t"><h2 className="h3">O que corrigir</h2><AgentTag k="polaris" /></div>
+      <p className="note">{q.clean} de {q.openDeals} negócios abertos estão completos. Cada linha é um teste sim/não sobre um campo; nada aqui é estimado.</p>
+      <div className="tbl-wrap"><table>
+        <thead><tr><th>Lacuna</th><th>Quem corrige</th><th>Negócios</th><th>Parcela</th></tr></thead>
+        <tbody>{q.issues.map((i) => (
+          <tr key={i.code}><td><b>{i.label}</b>{i.systemic && <> <span className="tag gap">quase todos</span></>}</td><td>{i.who === "manager" ? "gestor" : "vendedor"}</td>
+            <td className="mono">{i.deals.toLocaleString("pt-BR")}</td><td className="mono">{pct(i.share, 0)}</td></tr>))}</tbody>
+      </table></div>
+      {sysLabels.length > 0 && (
+        <Flag k="Confira antes de cobrar">
+          {sysLabels.join(" e ")} aparece em quase todos os negócios. Pode ser limitação do export ou um padrão do CRM, não hábito de cada vendedor. Por isso a fila abaixo só cobra isso nos negócios com valor.
+        </Flag>
+      )}
+      {!q.notesKnown && <p className="note">“Sem nota” não é avaliado nos dados de exemplo; envie um arquivo com notas em Datasets.</p>}
+      {q.queue.length > 0 && (
+        <>
+          <h3 className="h3" style={{ marginTop: 20 }}>Comece por estes ({q.queue.length} de {q.queueTotal})</h3>
+          <div className="tbl-wrap"><table>
+            <thead><tr><th>Negócio</th><th>Valor</th><th>Primeiro passo</th></tr></thead>
+            <tbody>{q.queue.map((r) => (
+              <tr key={r.id}><td>{r.name}<div className="note mono">{r.issues.map((c) => q.issues.find((i) => i.code === c)?.label).join(" · ")}</div></td>
+                <td className="mono">{r.amount ? brl(r.amount) : "—"}</td><td>{r.firstFix}</td></tr>))}</tbody>
+          </table></div>
+          <p className="note">Para registrar: no WhatsApp, “Lyra, nota na Acme: …” (a Lyra grava com recibo e Desfazer). A Polaris só lê.</p>
+        </>
+      )}
+      {(q.managerInactive.length > 0 || q.managerDuplicates.length > 0) && (
+        <p className="note">Para o gestor: {q.managerInactive.length} negócio(s) com dono desativado e {q.managerDuplicates.length} nome(s) possivelmente duplicado(s).</p>
+      )}
+    </section>
   );
 }

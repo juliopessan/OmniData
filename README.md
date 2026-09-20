@@ -4,8 +4,8 @@
 
 <p align="center"><img src="docs/assets/hero.png" alt="Landing do OmniData: o hero com o livro-razão calculado a partir de dados sintéticos" width="900"></p>
 
-O OmniData leva a inteligência do HubSpot para o WhatsApp do vendedor. Quem cuida dele é o **Observatório**, uma equipe de seis assessores de IA
-(Orion, Vega, Altair, Lyra, Aurora e Argus): o Orion lê o pedido e divide o trabalho, e cada especialista responde assinando a própria parte.
+O OmniData leva a inteligência do HubSpot para o WhatsApp do vendedor. Quem cuida dele é o **Observatório**, uma equipe de sete assessores de IA
+(Orion, Vega, Altair, Lyra, Aurora, Argus e Polaris): o Orion lê o pedido e divide o trabalho, e cada especialista responde assinando a própria parte.
 Número na tela vem do SQL, nunca do modelo. É a primeira fatia de uma visão 360° do cliente.
 
 **Demo do site:** https://omnidata-web-eta.vercel.app (dados sintéticos; login e cadastro são só demonstração).
@@ -39,6 +39,7 @@ Nada acima foi exercitado contra HubSpot, Meta ou LLM reais: veja **[docs/go-liv
 | **Lyra** | Escriba do CRM e leitora de notas (dores, termos) | `add_note`, `create_task`, `propose_deal_update`, `undo_last`, `get_pains`, `get_recurring_terms` |
 | **Aurora** | Rotina, alertas e insight do dia | `get_morning_brief`, `get_insight_digest` |
 | **Argus** | Auditor de Confiança | `get_data_quality`, `get_insight_coverage` |
+| **Polaris** | Coach de Qualidade: transforma a auditoria em fila de correção por vendedor (só lê; a Lyra grava) | `get_fix_queue` |
 
 O LLM só *propõe* o plano; o código valida (allowlist por especialista, no máximo 1 escrita e por último). Endereçamento direto: “Vega, como estou na meta?”. `uv run omnidata team` lista a equipe; `team export` gera `web/src/lib/team.json` (um teste garante a sincronia).
 
@@ -48,6 +49,8 @@ O LLM só *propõe* o plano; o código valida (allowlist por especialista, no m�
 
 - **Upload:** `/dashboard/datasets` (arrastar-e-soltar, prévia, relatório de erros por linha) ou `uv run omnidata dataset import arquivo.csv --kind deals --apply`. Reconhece a exportação do HubSpot em pt-BR, tira ganho/perdido da etapa e o motivo de perda das notas. Detalhes em [docs/datasets.md](docs/datasets.md).
 - **Airbyte:** HubSpot e outras fontes aterrissam no Postgres e o OmniData mapeia para o `silver` (`INGEST_MODE=airbyte`). O cliente próprio do HubSpot continua sendo o padrão e o único que escreve no CRM. Guia em [docs/airbyte.md](docs/airbyte.md).
+
+**Coach (Polaris):** `/dashboard/qualidade` mostra “O que corrigir” e, no WhatsApp, “o que preciso corrigir?” devolve os negócios com lacunas (sem valor, data vencida, sem próximo passo, sem nota, nome fora do padrão), ordenados por valor. Se uma lacuna aparece em quase todos os negócios (≥ 90%), ele avisa que pode ser do export ou do padrão do CRM, em vez de cobrar cada vendedor. Dono desativado e duplicatas vão só para o gestor. A Polaris não escreve no CRM: a correção passa pela Lyra, com confirmação. `omnidata hygiene analyze <arquivo>` roda sem banco.
 
 **Insights de empresas** (`/dashboard/insights`, `omnidata insights analyze <arquivo>`): dores, termos recorrentes, ERPs/CRMs, tipo de demanda, segmentos e campanhas, extraídos das notas e dos nomes dos negócios por contagem determinística (sem LLM). Lyra cuida de dores e termos, Altair de demanda e ERPs, Vega de segmentos, Argus da cobertura e Aurora do insight do dia; o Orion junta tudo num pedido amplo. Cada bloco mostra a cobertura, e associações são correlação, nunca causa. Entende o export do HubSpot (`Cliente<>Parceiro [Demanda]`) e o formato `Empresa – Demanda`.
 
@@ -154,7 +157,7 @@ A lista completa, com comentários, está em `.env.example`.
 
 ### Deploy do site na Vercel
 
-Importe o repositório com **Root Directory = `web`** (framework Next.js). Não exige variáveis de ambiente. `NEXT_PUBLIC_API_URL` só entra quando houver uma API hospedada. Cada push em `main` publica sozinho.
+Importe o repositório com **Root Directory = `web`** (framework Next.js). Não exige variáveis de ambiente. `NEXT_PUBLIC_API_URL` só entra quando houver uma API hospedada: passo a passo em [docs/deploy-api.md](docs/deploy-api.md). Cada push em `main` publica sozinho.
 
 ## Problemas comuns
 

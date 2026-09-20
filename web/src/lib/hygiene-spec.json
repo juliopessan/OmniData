@@ -1,0 +1,54 @@
+{
+  "issues": [
+    {
+      "code": "no_amount",
+      "label": "Sem valor",
+      "who": "seller",
+      "tool": "propose_deal_update",
+      "how": "informar o valor estimado"
+    },
+    {
+      "code": "close_date_past",
+      "label": "Data de fechamento vencida",
+      "who": "seller",
+      "tool": "propose_deal_update",
+      "how": "reagendar a data de fechamento"
+    },
+    {
+      "code": "no_next_step",
+      "label": "Sem próximo passo",
+      "who": "seller",
+      "tool": "create_task",
+      "how": "criar uma tarefa com data"
+    },
+    {
+      "code": "no_notes",
+      "label": "Sem nota",
+      "who": "seller",
+      "tool": "add_note",
+      "how": "registrar o que foi combinado"
+    },
+    {
+      "code": "name_format",
+      "label": "Nome fora do padrão",
+      "who": "seller",
+      "tool": "",
+      "how": "corrigir o nome no HubSpot (Cliente<>Parceiro [Demanda])"
+    },
+    {
+      "code": "owner_inactive",
+      "label": "Dono desativado",
+      "who": "manager",
+      "tool": "",
+      "how": "redistribuir o negócio"
+    },
+    {
+      "code": "duplicate",
+      "label": "Possível duplicata",
+      "who": "manager",
+      "tool": "",
+      "how": "conferir e mesclar ou arquivar"
+    }
+  ],
+  "systemicShare": 0.9
+}

@@ -62,7 +62,15 @@ ARGUS = Agent(
     ("como estão meus dados?", "posso confiar nesses insights?"),
 )
 
-TEAM: dict[str, Agent] = {a.key: a for a in (ORION, VEGA, ALTAIR, LYRA, AURORA, ARGUS)}
+POLARIS = Agent(
+    "polaris", "Polaris", "Coach de Qualidade",
+    "Transforma a auditoria do Argus em uma fila curta do que corrigir, por vendedor e por valor, e explica por que cada campo importa. Quem grava a correção é a Lyra, com a sua confirmação.",
+    "Paciente e prático. Dá um passo por vez e não cobra o que pode ser problema do export.",
+    ("get_fix_queue",),
+    ("o que preciso corrigir nos meus negócios?", "Polaris, por onde começo a arrumar o CRM?"),
+)
+
+TEAM: dict[str, Agent] = {a.key: a for a in (ORION, VEGA, ALTAIR, LYRA, AURORA, ARGUS, POLARIS)}
 SPECIALISTS: dict[str, Agent] = {k: a for k, a in TEAM.items() if a.tools}
 TOOL_OWNER: dict[str, str] = {t: a.key for a in SPECIALISTS.values() for t in a.tools}
 WRITE_TOOLS = frozenset({"add_note", "create_task", "propose_deal_update", "undo_last"})
