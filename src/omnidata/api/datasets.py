@@ -1,7 +1,6 @@
 """Dataset upload API. Protected by ADMIN_API_TOKEN (bearer). Default is a dry run: nothing is written until dry_run=false."""
 from __future__ import annotations
 
-import hmac
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, File, Form, Header, HTTPException, Request, UploadFile
@@ -12,17 +11,16 @@ from ..datasets.importer import ImportOptions, import_file
 from ..datasets.parse import UploadError
 from ..datasets.spec import KINDS, spec_json
 from ..datasets.templates import template_bytes
+from .guard import admin_check
 
 router = APIRouter(prefix="/api/datasets", tags=["datasets"])
 
 
 def require_admin(authorization: Annotated[str | None, Header()] = None) -> str:
-    token = get_settings().admin_api_token
-    if not token:
-        raise HTTPException(503, "uploads disabled: ADMIN_API_TOKEN is not configured")
-    supplied = (authorization or "").removeprefix("Bearer ").strip()
-    if not supplied or not hmac.compare_digest(supplied.encode(), token.encode()):
-        raise HTTPException(401, "invalid token", headers={"WWW-Authenticate": "Bearer"})
+    """Second layer: BodyGuardMiddleware already rejects bad tokens before the body is read; this also covers GET routes."""
+    bad = admin_check(authorization)
+    if bad:
+        raise HTTPException(bad[0], bad[1], headers={"WWW-Authenticate": "Bearer"} if bad[0] == 401 else None)
     return "api"
 
 

@@ -56,6 +56,7 @@ class Settings(BaseSettings):
     cors_origins: str = ""         # comma-separated origins allowed to call the API from a browser
     dataset_max_bytes: int = 10_000_000
     dataset_max_rows: int = 100_000
+    webhook_max_bytes: int = 1_000_000  # WhatsApp payloads are small; a bigger body is rejected before the signature is checked
 
     @property
     def direct_url(self) -> str:

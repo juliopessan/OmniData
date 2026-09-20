@@ -14,6 +14,7 @@ from ..bot.webhook import router as webhook_router
 from ..config import get_settings
 from ..db import connect
 from .datasets import router as datasets_router
+from .guard import BodyGuardMiddleware
 
 log = logging.getLogger("omnidata.api")
 
@@ -21,6 +22,7 @@ log = logging.getLogger("omnidata.api")
 def create_app(connect_fn: Callable[[], psycopg.Connection[Any]] | None = None) -> FastAPI:
     app = FastAPI(title="OmniData", docs_url=None, redoc_url=None)
     app.state.connect = connect_fn or connect
+    app.add_middleware(BodyGuardMiddleware)   # added before CORS, so CORS wraps it and browsers can read its 401/413
     origins = [o.strip() for o in get_settings().cors_origins.split(",") if o.strip()]
     if origins:  # browser access (the dashboard upload page); token auth, so no cookies/credentials are involved
         app.add_middleware(CORSMiddleware, allow_origins=origins, allow_methods=["GET", "POST"], allow_headers=["authorization", "content-type"])

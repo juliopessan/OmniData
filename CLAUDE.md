@@ -33,7 +33,8 @@ Purpose: WhatsApp sales assistant on a HubSpot-fed Postgres store. Source of tru
 5. Bot-facing text lives only in bot/strings_ptbr.py.
 6. Migrations are forward-only. Never edit an applied migration.
 7. Permissions are enforced in repositories via Principal. No tool accepts an owner id from model output.
-8. No PII in logs. No secrets in the repo.
+8. HTTP bodies: auth and size limits run BEFORE the body is read (`api/guard.py`, pure ASGI); FastAPI parses forms before dependencies, so a check inside a route is too late. New POST routes with bodies must be added there. Web security headers live in `web/next.config.mjs` (CSP only in production).
+8b. No PII in logs. No secrets in the repo.
 9. Unresolved [OPEN-n] items: implement behind an interface or config flag, add a TODO(OPEN-n), continue.
 10. To change a decision in §5, add an ADR (docs/adr) and a row to the decision log in the same PR.
 

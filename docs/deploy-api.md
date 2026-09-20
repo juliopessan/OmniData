@@ -47,4 +47,5 @@ Sem token, o upload responde 401.
 
 - O upload é protegido **só** pelo token de admin. Use um token longo e único, HTTPS obrigatório, e troque-o se vazar. Login real de usuários ainda não existe.
 - O arquivo enviado **não é guardado**: só o hash e as contagens (`app.dataset_upload`); mas as linhas importadas entram no Postgres. Trate esse banco como dado pessoal (backup, acesso restrito, plano pago).
+- **Limites antes de ler o corpo** (`src/omnidata/api/guard.py`): o token de admin e o tamanho são conferidos antes de a API ler qualquer byte do envio; uploads acima de `DATASET_MAX_BYTES` (+ 200 KB de formulário) e webhooks acima de `WEBHOOK_MAX_BYTES` (1 MB) recebem 413. Mesmo assim, ponha também um limite de corpo no proxy/balanceador na frente da API e limite de tentativas no `/api/datasets`: a API não conta tentativas de token.
 - Os endpoints do webhook do WhatsApp exigem `WHATSAPP_APP_SECRET` para validar a assinatura; sem ele, não os exponha.
