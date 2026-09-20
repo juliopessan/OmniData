@@ -13,7 +13,9 @@ export function TeamGrid({ withTools = false }: { withTools?: boolean }) {
             <p className="body">{m.tagline}</p>
             <p className="note">“{m.examples[0]}”</p>
             {withTools && (
-              <p className="note">{m.tools.length ? m.tools.map((t) => <code key={t} style={{ marginRight: 8 }}>{t}</code>) : "planeja e coordena, não chama ferramentas"}</p>
+              m.tools.length
+                ? <div className="tools" aria-label={`Ferramentas de ${m.name}`}>{m.tools.map((t) => <code key={t}>{t}</code>)}</div>
+                : <p className="note">planeja e coordena, não chama ferramentas</p>
             )}
           </div>
         </article>
