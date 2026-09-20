@@ -114,7 +114,7 @@ supabase start                     # Postgres local em 127.0.0.1:54322 (Docker p
 uv run omnidata db migrate         # cria os schemas bronze/silver/gold/serving/app
 uv run omnidata dev seed           # CRM sintético, sem dados pessoais
 uv run omnidata audit              # relatório de prontidão dos dados + go/no-go
-uv run omnidata serve api          # http://localhost:8000  (/healthz, /readyz, webhook)
+uv run omnidata serve api          # http://localhost:8000  (/healthz, /readyz, webhook); porta ocupada? use --port 8010
 uv run omnidata serve worker       # noutro terminal: fila de mensagens, ingestão e alertas
 make check                         # ruff + mypy + pytest
 ```
@@ -129,6 +129,7 @@ make check                         # ruff + mypy + pytest
 uv run omnidata dataset template --kind deals > modelo.csv                # modelo de colunas
 uv run omnidata dataset import negocios.csv --kind deals                  # só valida (precisa do banco)
 uv run omnidata dataset import negocios.csv --kind deals --apply          # grava; reenviar o mesmo arquivo não duplica
+uv run omnidata dataset import negocios.csv --kind deals --apply --allow-partial   # grava as linhas válidas e lista as recusadas
 uv run omnidata dataset import metas.csv --kind quotas --apply
 uv run omnidata insights analyze negocios.csv                             # insights em JSON, sem banco
 ```
@@ -162,6 +163,8 @@ Importe o repositório com **Root Directory = `web`** (framework Next.js). Não 
 | `Cannot find module './331.js'` ou página em branco no `npm run dev` | Cache do Next corrompido (por exemplo após rodar `next build` com o servidor aberto). `cd web && rm -rf .next && npm run dev`. |
 | `cd: web: no such file or directory` | Você já está dentro de `web/`, ou fora do repositório. Use o caminho completo do clone. |
 | Import pelo CLI falha com erro de conexão | O Postgres não está no ar: `supabase start` e confira `DATABASE_URL`. |
+| Import recusado com `status: rejected` e "linha N · … data inválida" | O modo padrão é estrito: uma linha inválida recusa o arquivo. Corrija as linhas listadas ou use `--allow-partial` (CLI) / "importar as linhas válidas mesmo com erros" (tela). Num export real do HubSpot, poucas linhas vêm com a coluna Próxima atividade quebrada. |
+| `{"detail":"Not Found"}` em `/healthz` ou `/api/datasets` | Outro programa está na porta 8000. Suba a API com `--port 8010` e ajuste `NEXT_PUBLIC_API_URL`. |
 | Cartão Metas mostra "obrigatória: falta" para um export de negócios | Você soltou o arquivo no cartão errado; use o cartão **Negócios**. |
 | Insights com muitos blocos vazios | Veja a cobertura no topo da página: o arquivo não traz notas, campanha ou motivo de perda. |
 | "não consegue acessar a API" na página Datasets | `CORS_ORIGINS` não inclui a origem do site, ou a API não está no ar. |
