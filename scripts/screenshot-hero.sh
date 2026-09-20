@@ -4,10 +4,15 @@
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 CHROME="${CHROME:-/Applications/Google Chrome.app/Contents/MacOS/Google Chrome}"
-cd "$ROOT/web" && npx next build >/dev/null
+cd "$ROOT/web"
+# Build isolado: não toca no .next do `npm run dev` nem no tsconfig.json versionado.
+export NEXT_DIST_DIR="${NEXT_DIST_DIR:-.next-hero}" NEXT_TSCONFIG=tsconfig.iso.json
+printf '{ "extends": "./tsconfig.json" }\n' > tsconfig.iso.json
+trap 'rm -rf "$NEXT_DIST_DIR" tsconfig.iso.json' EXIT
+npx next build >/dev/null
 npx next start -p 3100 >/dev/null 2>&1 &
 PID=$!
-trap 'kill $PID 2>/dev/null' EXIT
+trap 'kill $PID 2>/dev/null; rm -rf "$NEXT_DIST_DIR" tsconfig.iso.json' EXIT
 sleep 5
 mkdir -p "$ROOT/docs/assets"
 "$CHROME" --headless=new --disable-gpu --hide-scrollbars --force-device-scale-factor=2 \

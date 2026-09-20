@@ -19,7 +19,7 @@ Purpose: WhatsApp sales assistant on a HubSpot-fed Postgres store. Source of tru
 - omnidata insights spec|analyze <file> | omnidata hygiene spec|analyze <file>
 - omnidata db backup | omnidata db size-report
 - Tests need Postgres: `TEST_DATABASE_URL=postgresql://postgres@127.0.0.1:54399/omnidata_test` (DB tests skip if unreachable)
-- web: `cd web && npm install && npm run dev`
+- web: `cd web && npm install && npm run dev`. Build de teste em paralelo ao dev server: `NEXT_DIST_DIR=.next-x NEXT_TSCONFIG=tsconfig.iso.json` (com `tsconfig.iso.json` = `{ "extends": "./tsconfig.json" }`, ignorado pelo git); assim o `.next` e o `tsconfig.json` não mudam.
 
 ## Rules
 1. Plan first for any task touching more than 3 files; small commits referencing FR-IDs.
