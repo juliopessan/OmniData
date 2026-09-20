@@ -50,6 +50,8 @@ O LLM só *propõe* o plano; o código valida (allowlist por especialista, no m�
 - **Upload:** `/dashboard/datasets` (arrastar-e-soltar, prévia, relatório de erros por linha) ou `uv run omnidata dataset import arquivo.csv --kind deals --apply`. Reconhece a exportação do HubSpot em pt-BR, tira ganho/perdido da etapa e o motivo de perda das notas. Detalhes em [docs/datasets.md](docs/datasets.md).
 - **Airbyte:** HubSpot e outras fontes aterrissam no Postgres e o OmniData mapeia para o `silver` (`INGEST_MODE=airbyte`). O cliente próprio do HubSpot continua sendo o padrão e o único que escreve no CRM. Guia em [docs/airbyte.md](docs/airbyte.md).
 
+**Modo reunião** (`/dashboard/reuniao`): uma página para conduzir a reunião de vendas com o seu arquivo. Traz os KPIs, gráficos (pipeline e concentração, demanda, ERPs, dores e termos, lacunas de qualidade e cobertura) e **decisões sugeridas por regras fixas** (`web/src/lib/decisions.ts`): cada sugestão mostra a regra que a disparou, os números que a sustentam e o agente responsável, e vem rotulada como sugestão para não se confundir com número medido. Imprime em PDF pelo navegador. Tudo é calculado no navegador; não usa plataforma de BI nem modelo de linguagem. Um BI (por exemplo o Metabase, lendo `serving.*`) só faz sentido depois que a API e o Postgres estiverem no ar.
+
 **Coach (Polaris):** `/dashboard/qualidade` mostra “O que corrigir” e, no WhatsApp, “o que preciso corrigir?” devolve os negócios com lacunas (sem valor, data vencida, sem próximo passo, sem nota, nome fora do padrão), ordenados por valor. Se uma lacuna aparece em quase todos os negócios (≥ 90%), ele avisa que pode ser do export ou do padrão do CRM, em vez de cobrar cada vendedor. Dono desativado e duplicatas vão só para o gestor. A Polaris não escreve no CRM: a correção passa pela Lyra, com confirmação. `omnidata hygiene analyze <arquivo>` roda sem banco.
 
 **Insights de empresas** (`/dashboard/insights`, `omnidata insights analyze <arquivo>`): dores, termos recorrentes, ERPs/CRMs, tipo de demanda, segmentos e campanhas, extraídos das notas e dos nomes dos negócios por contagem determinística (sem LLM). Lyra cuida de dores e termos, Altair de demanda e ERPs, Vega de segmentos, Argus da cobertura e Aurora do insight do dia; o Orion junta tudo num pedido amplo. Cada bloco mostra a cobertura, e associações são correlação, nunca causa. Entende o export do HubSpot (`Cliente<>Parceiro [Demanda]`) e o formato `Empresa – Demanda`.
@@ -193,7 +195,7 @@ Importe o repositório com **Root Directory = `web`** (framework Next.js). Não 
 | `/` | Landing (Hook → Re-Hook → Meat → CTA) com números do time calculados de dados sintéticos |
 | `/funcionalidades` | Blocos por tema com exemplos de conversa no WhatsApp |
 | `/precos`, `/login`, `/cadastro` | Planos todos “Sob consulta”; login/cadastro **sem autenticação real** |
-| `/dashboard/*` | Visão geral, negócios, alertas, **insights**, equipe, **datasets**, WhatsApp, qualidade dos dados |
+| `/dashboard/*` | Visão geral, negócios, alertas, **insights**, **reunião**, equipe, **datasets**, WhatsApp, qualidade dos dados |
 
 Cada rota tem `<title>` próprio; o favicon é a mesma marca em todas (`web/src/app/**/icon.svg`). O efeito de verbos girando está em `web/src/components/SpinVerb.tsx`.
 
