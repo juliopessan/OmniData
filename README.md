@@ -2,7 +2,7 @@
 
 **Seu time não abre o CRM. Mas responde o WhatsApp.**
 
-<p align="center"><img src="docs/assets/hero.png" alt="Landing do OmniData: o hero com o livro-razão calculado a partir de dados sintéticos" width="900"></p>
+<p align="center"><img src="docs/assets/hero.png" alt="Landing do OmniData: o hero com os números do time calculados a partir de dados sintéticos" width="900"></p>
 
 O OmniData leva a inteligência do HubSpot para o WhatsApp do vendedor. Quem cuida dele é o **Observatório**, uma equipe de sete assessores de IA
 (Orion, Vega, Altair, Lyra, Aurora, Argus e Polaris): o Orion lê o pedido e divide o trabalho, e cada especialista responde assinando a própria parte.
@@ -177,7 +177,7 @@ Importe o repositório com **Root Directory = `web`** (framework Next.js). Não 
 
 | Rota | Conteúdo |
 |---|---|
-| `/` | Landing (Hook → Re-Hook → Meat → CTA) com livro-razão calculado de dados sintéticos |
+| `/` | Landing (Hook → Re-Hook → Meat → CTA) com números do time calculados de dados sintéticos |
 | `/funcionalidades` | Blocos por tema com exemplos de conversa no WhatsApp |
 | `/precos`, `/login`, `/cadastro` | Planos todos “Sob consulta”; login/cadastro **sem autenticação real** |
 | `/dashboard/*` | Visão geral, negócios, alertas, **insights**, equipe, **datasets**, WhatsApp, qualidade dos dados |

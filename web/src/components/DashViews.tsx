@@ -30,13 +30,13 @@ export function OverviewView() {
   return (
     <>
       <div className="main-head">
-        <div><Eyebrow>Visão geral · {upload ? "seu arquivo" : PERIOD}</Eyebrow><h1 className="h2">Livro-razão do time</h1></div>
+        <div><Eyebrow>Visão geral · {upload ? "seu arquivo" : PERIOD}</Eyebrow><h1 className="h2">Resultado do time</h1></div>
         <SpinVerb verbs={["Sincronizando HubSpot", "Reconciliando", "Auditando"]} />
       </div>
       <SourceBanner />
 
       <div className="ledger">
-        <div className="ledger-head"><span className="live">Livro-razão</span><span className="meta">{m.owners} vendedores · {upload ? "seu arquivo" : "dados sintéticos"}</span></div>
+        <div className="ledger-head"><span className="live">Números do time</span><span className="meta">{m.owners} vendedores · {upload ? "seu arquivo" : "dados sintéticos"}</span></div>
         {m.hasQuota ? (
           <>
             <Bar label="Meta do time" value={brl(m.quota)} width={1} tone="dim" />

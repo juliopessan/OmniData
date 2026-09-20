@@ -38,8 +38,8 @@ export default function Home() {
             <SpinVerb verbs={["Orion coordenando", "Vega calculando a meta", "Altair varrendo o funil", "Lyra registrando no HubSpot", "Argus auditando os dados"]} />
           </div>
 
-          <div className="ledger" aria-label="Livro-razão de exemplo, calculado a partir de dados sintéticos">
-            <div className="ledger-head"><span className="live">Livro-razão · set/2026</span><span className="meta">dados sintéticos</span></div>
+          <div className="ledger" aria-label="Números de exemplo, calculados a partir de dados sintéticos">
+            <div className="ledger-head"><span className="live">Números · set/2026</span><span className="meta">dados sintéticos</span></div>
             <Bar label="Meta do time" value={brl(m.quota)} width={1} tone="dim" />
             <Bar label="Ganho no período" value={brl(m.wonAmount)} width={m.attainment} tone="mint" />
             <div className="figs">
