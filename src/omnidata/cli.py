@@ -38,7 +38,9 @@ app.add_typer(airbyte_app, name="airbyte")
 hygiene_app = typer.Typer(no_args_is_help=True, help="Data hygiene: the Coach's fix queue")
 app.add_typer(insights_app, name="insights")
 eval_app = typer.Typer(no_args_is_help=True, help="Evaluations (no database needed)")
+forecast_app = typer.Typer(no_args_is_help=True, help="Statistical forecast of the open pipeline")
 app.add_typer(hygiene_app, name="hygiene")
+app.add_typer(forecast_app, name="forecast")
 app.add_typer(eval_app, name="eval")
 
 
@@ -222,6 +224,26 @@ def eval_planner(mode: str = typer.Option("keyword", help="keyword (no LLM) | ll
     typer.echo(json.dumps(rep.to_json(), ensure_ascii=False, indent=2) if as_json else ev.format_report(rep))
     if rep.count("critical") or rep.rate("correct") < min_correct:
         raise typer.Exit(1)
+
+
+@forecast_app.command("analyze")
+def forecast_analyze(file: Path, quota: float | None = typer.Option(None, help="target for the period, in R$"),
+                     realized: float = typer.Option(0.0, help="already won in the period, in R$")) -> None:
+    """Forecast for a deals CSV/XLSX (no database needed): what the open pipeline can still add and the chance of reaching --quota."""
+    import json
+
+    from .datasets.parse import read_table
+    from .datasets.spec import DEALS
+    from .datasets.validate import validate
+    from .forecast.compute import forecast
+    data = file.read_bytes()
+    _, rows = validate(DEALS, read_table(data, file.name), file.name, data)
+    if not rows:
+        typer.echo("no valid deals in the file", err=True)
+        raise typer.Exit(2)
+    wins, losses = sum(1 for r in rows if r["status"] == "won"), sum(1 for r in rows if r["status"] == "lost")
+    open_amounts = [float(r["amount"] or 0) for r in rows if r["status"] == "open"]
+    typer.echo(json.dumps(forecast(open_amounts, wins, losses, realized, quota, has_created_at=any(r["created_at"] for r in rows)), ensure_ascii=False, indent=2, default=str))
 
 
 @hygiene_app.command("spec")

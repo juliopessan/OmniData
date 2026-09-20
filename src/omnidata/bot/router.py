@@ -5,6 +5,7 @@ import re
 import unicodedata
 
 _RULES: list[tuple[str, re.Pattern[str]]] = [
+    ("get_forecast", re.compile(r"\b(vou bater|vai bater|vamos bater|chances? de (eu |a gente |nos )?(bater|fechar|atingir)|probabilidade de (eu |a gente |nos )?(bater|fechar|ganhar|atingir)|forecast|(previsao|projecao|prever|previsto)( de| do| da| dos| das)? (a )?(meta|metas|fechamento|vendas|receita|faturamento|trimestre|mes|semana|pipeline|resultado|ganho))\b")),
     ("get_fix_queue", re.compile(r"\b(corri[gj]\w+|correcao|correcoes|preencher|arrumar|higiene|fila de correcao|o que (esta )?faltando|(dado|dados|campos?) faltando|sem valor|sem proximo passo)\b")),
     ("get_insight_digest", re.compile(r"\b(insight do dia|insight de hoje|destaque do dia)\b")),
     ("get_insight_coverage", re.compile(r"\b(cobertura|confiar nos insights?|insights? confiaveis?)\b")),

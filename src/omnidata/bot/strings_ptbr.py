@@ -241,3 +241,31 @@ def tpl_fix_queue(d: dict[str, Any]) -> str:
     if m.get("duplicates"):
         lines.append(f"Para o gestor: {len(m['duplicates'])} nome(s) possivelmente duplicado(s).")
     return "\n".join([head, *lines]) if lines else head + " Nada a corrigir agora."
+
+
+def tpl_forecast(d: dict[str, Any]) -> str:
+    if d.get("status") == "insufficient":
+        return (f"Ainda não há base para prever: só {d['closed']} negócio(s) fechado(s) (o mínimo é {d['min_closed']}). "
+                "Com tão pouco histórico, qualquer porcentagem seria chute.")
+    if d.get("status") == "no_pipeline":
+        return "Não há negócios abertos com valor para prever. Preencha o valor dos negócios abertos (a Polaris mostra quais)."
+    sc, lo, hi = d["scenarios"]["mid"], d["win_rate_ci"][0], d["win_rate_ci"][1]
+    out = (f"Com base em {d['closed']} negócios fechados (taxa de ganho {pct(d['win_rate'], 0)}, entre {pct(lo, 0)} e {pct(hi, 0)}), "
+           f"os {d['open_with_value']} negócios abertos com valor ({brl(d['open_amount'])}) devem render cerca de {brl(sc['expected'])}, "
+           f"numa faixa provável de {brl(sc['p10'])} a {brl(sc['p90'])}.")
+    if d.get("quota") is not None and d.get("target") is not None:
+        if d["target"] <= 0:
+            out += f" A meta de {brl(d['quota'])} já foi batida."
+        else:
+            lo_p, mid_p, hi_p = (d["scenarios"][k]["prob_target"] for k in ("low", "mid", "high"))
+            what = "a chance seria no máximo" if d.get("backlog") else "a chance é"
+            out += (f" Para a meta de {brl(d['quota'])} (faltam {brl(d['target'])}), {what} *{pct(mid_p, 0)}*, "
+                    f"entre {pct(lo_p, 0)} e {pct(hi_p, 0)} conforme a taxa de ganho.")
+    else:
+        out += " Sem meta cadastrada, não calculo a chance de bater."
+    if d.get("backlog"):
+        out += (f" Cuidado: há {d['open_with_value']} negócios abertos com valor para só {d['closed']} fechados no histórico. "
+                "A taxa de ganho do passado não descreve esse acúmulo (a maioria pode nunca fechar), então trate isto como um teto, não como previsão.")
+    elif d.get("status") == "indicative":
+        out += " Atenção: com menos de 20 fechados isto é só indicativo."
+    return out + " A taxa vem só dos negócios fechados e tende a ser otimista, pois negócios parados não entram como perdidos."

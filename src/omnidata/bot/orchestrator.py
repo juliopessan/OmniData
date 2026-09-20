@@ -434,6 +434,8 @@ def _read(conn: Conn, p: Principal, tool: str, a: dict[str, Any], today: date): 
         return d, S.tpl_brief
     if tool == "get_data_quality":
         return repo.data_quality(conn, p), S.tpl_quality
+    if tool == "get_forecast":
+        return repo.forecast(conn, p, repo.month_start(today)), S.tpl_forecast
     if tool in INSIGHT_TOOLS:
         return _insight(conn, p, tool, a)
     if tool == "get_fix_queue":

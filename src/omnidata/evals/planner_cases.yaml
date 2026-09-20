@@ -12,6 +12,9 @@
 - {id: metas-04, tag: metas, text: "qual é o meu win rate?", plan: [vega.get_kpis]}
 - {id: metas-05, tag: metas, text: "me mostra meus números do trimestre", plan: [vega.get_kpis]}
 - {id: metas-06, tag: metas, text: "minha taxa de conversão caiu?", plan: [vega.get_kpis]}
+- {id: metas-07, tag: metas, text: "vou bater a meta esse mês?", plan: [vega.get_forecast]}
+- {id: metas-08, tag: metas, text: "qual a chance de eu bater a meta do trimestre?", plan: [vega.get_forecast]}
+- {id: metas-09, tag: metas, text: "qual a previsão de fechamento do mês?", plan: [vega.get_forecast]}
 # ---------- funil e negócios ----------
 - {id: funil-01, tag: funil, text: "como está meu funil?", plan: [altair.get_pipeline_summary]}
 - {id: funil-02, tag: funil, text: "quanto tenho em pipeline aberto?", plan: [altair.get_pipeline_summary]}

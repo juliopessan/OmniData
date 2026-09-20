@@ -8,6 +8,7 @@ Purpose: WhatsApp sales assistant on a HubSpot-fed Postgres store. Source of tru
 - Data in: `datasets/` (CSV/XLSX upload, one canonical importer, ADR 0005), `integrations/airbyte/` (Airbyte landing + generic mapping, ADR 0006), `api/datasets.py`. Regenerate the web spec: `omnidata dataset spec > web/src/lib/dataset-spec.json`.
 - Insights: `insights/` (spec + compute, puro e determinístico; `omnidata insights spec > web/src/lib/insights-spec.json`), views `serving.v_deal_facts|v_deal_notes` (0009), 7 tools `get_pains…get_insight_digest`; port TS em `web/src/lib/insights.ts` (mesmo spec).
 - Routing without LLM is `bot/routing.py` (pure; used by the orchestrator AND `evals/planner.py`); keyword rules in `bot/router.py`. Writes never fall back to a read.
+- Forecast (Vega `get_forecast`): `forecast/` (pure statistical layer; ML gate `ml_status`, layer 2 NOT built, ADR 0007); TS port `web/src/lib/forecast.ts` (standalone, same PRNG; a test runs it in Node and compares bit for bit). Never show a probability below `MIN_CLOSED`; flag `backlog`.
 - Coach (Polaris): `hygiene/` (spec + compute, puro; `omnidata hygiene spec > web/src/lib/hygiene-spec.json`), view `serving.v_hygiene_facts` (0010), tool `get_fix_queue` (read-only; fixes go through Lyra); port TS em `web/src/lib/hygiene.ts`.
 - `web/` Next.js front-end (landing, auth, dashboard) with the Ledger design system; synthetic data only.
 
@@ -18,6 +19,7 @@ Purpose: WhatsApp sales assistant on a HubSpot-fed Postgres store. Source of tru
 - omnidata audit | omnidata audit properties | omnidata ingest backfill | omnidata ingest incremental | omnidata dev seed
 - omnidata dataset import|template|spec | omnidata airbyte connections|sync|ingest|generic
 - omnidata insights spec|analyze <file> | omnidata hygiene spec|analyze <file>
+- omnidata forecast analyze <file> [--quota N --realized N]
 - omnidata eval planner [--mode keyword|llm] [--cases f.yaml]   # planner golden set (src/omnidata/evals); keyword rules must not be tuned on planner_holdout.yaml
 - omnidata db backup | omnidata db size-report
 - Tests need Postgres: `TEST_DATABASE_URL=postgresql://postgres@127.0.0.1:54399/omnidata_test` (DB tests skip if unreachable)

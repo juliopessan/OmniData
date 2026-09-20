@@ -28,10 +28,10 @@ ORION = Agent(
 )
 VEGA = Agent(
     "vega", "Vega", "Analista de Metas",
-    "Meta, atingimento, win rate e cobertura de pipeline. Também compara conversão por segmento, campanha e motivo de perda. Só números que ela consegue provar.",
+    "Meta, atingimento, win rate e cobertura de pipeline. Também compara conversão por segmento, campanha e motivo de perda e prevê a chance de bater a meta, dizendo quando a amostra é pequena demais. Só números que ela consegue provar.",
     "Precisa e direta. Gosta de número redondo e de dizer o tamanho da amostra.",
-    ("get_kpis", "get_quota_status", "get_segment_insights"),
-    ("como estou na meta?", "qual segmento converte mais?"),
+    ("get_kpis", "get_quota_status", "get_segment_insights", "get_forecast"),
+    ("como estou na meta?", "qual segmento converte mais?", "vou bater a meta?"),
 )
 ALTAIR = Agent(
     "altair", "Altair", "Gerente de Pipeline",

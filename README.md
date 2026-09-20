@@ -34,7 +34,7 @@ Nada acima foi exercitado contra HubSpot, Meta ou LLM reais: veja **[docs/go-liv
 | Membro | Função | Ferramentas |
 |---|---|---|
 | **Orion** | Coordenador: analisa o pedido, monta o plano (≤ 3 passos) e devolve uma resposta só | — |
-| **Vega** | Analista de Metas e segmentos | `get_kpis`, `get_quota_status`, `get_segment_insights` |
+| **Vega** | Analista de Metas, segmentos e previsão | `get_kpis`, `get_quota_status`, `get_segment_insights`, `get_forecast` |
 | **Altair** | Gerente de Pipeline, demanda e ERPs | `get_pipeline_summary`, `get_deal`, `list_deals_needing_action`, `get_demand_types`, `get_systems_landscape` |
 | **Lyra** | Escriba do CRM e leitora de notas (dores, termos) | `add_note`, `create_task`, `propose_deal_update`, `undo_last`, `get_pains`, `get_recurring_terms` |
 | **Aurora** | Rotina, alertas e insight do dia | `get_morning_brief`, `get_insight_digest` |
@@ -51,6 +51,8 @@ O LLM só *propõe* o plano; o código valida (allowlist por especialista, no m�
 - **Airbyte:** HubSpot e outras fontes aterrissam no Postgres e o OmniData mapeia para o `silver` (`INGEST_MODE=airbyte`). O cliente próprio do HubSpot continua sendo o padrão e o único que escreve no CRM. Guia em [docs/airbyte.md](docs/airbyte.md).
 
 **Modo reunião** (`/dashboard/reuniao`): uma página para conduzir a reunião de vendas com o seu arquivo. Traz os KPIs, gráficos (pipeline e concentração, demanda, ERPs, dores e termos, lacunas de qualidade e cobertura) e **decisões sugeridas por regras fixas** (`web/src/lib/decisions.ts`): cada sugestão mostra a regra que a disparou, os números que a sustentam e o agente responsável, e vem rotulada como sugestão para não se confundir com número medido. Imprime em PDF pelo navegador. Tudo é calculado no navegador; não usa plataforma de BI nem modelo de linguagem. Um BI (por exemplo o Metabase, lendo `serving.*`) só faz sentido depois que a API e o Postgres estiverem no ar.
+
+**Previsão (Vega, `get_forecast`; `omnidata forecast analyze <arquivo> --quota N`):** estimativa estatística de quanto o pipeline aberto ainda pode render e da chance de bater a meta. Usa a taxa de ganho dos negócios fechados (com intervalo de confiança de Wilson) em três cenários (baixo, central, alto) simulados com os mesmos números aleatórios, e mostra faixas (10% a 90%), nunca um número só. Recusa prever com menos de 10 fechados e marca como “teto, não previsão” quando os negócios abertos com valor são mais de 3 vezes os fechados, porque a taxa do passado não descreve um acúmulo de negócios parados. Determinística (semente fixa) e igual no bot e no navegador, com teste que executa o TypeScript no Node e compara com o Python. **O modelo de ML (scikit-learn) está desligado de propósito:** o projeto exige 300 fechados por pipeline e os exports não trazem data de criação nem histórico de etapa, então um modelo aprenderia o resultado em vez de prevê-lo (ADR 0007).
 
 **Coach (Polaris):** `/dashboard/qualidade` mostra “O que corrigir” e, no WhatsApp, “o que preciso corrigir?” devolve os negócios com lacunas (sem valor, data vencida, sem próximo passo, sem nota, nome fora do padrão), ordenados por valor. Se uma lacuna aparece em quase todos os negócios (≥ 90%), ele avisa que pode ser do export ou do padrão do CRM, em vez de cobrar cada vendedor. Dono desativado e duplicatas vão só para o gestor. A Polaris não escreve no CRM: a correção passa pela Lyra, com confirmação. `omnidata hygiene analyze <arquivo>` roda sem banco.
 

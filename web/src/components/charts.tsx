@@ -52,3 +52,26 @@ export function Ring({ value, label }: { value: number | null; label: string }) 
     </figure>
   );
 }
+
+export interface RangeRow { label: string; lo: number; mid: number; hi: number; display: string }
+
+/** Faixas de incerteza: a barra vai do pior provável ao melhor provável (10%–90%), o traço marca a mediana e a linha tracejada a meta. */
+export function RangeBars({ rows, max, target, label }: { rows: RangeRow[]; max: number; target?: number | null; label: string }) {
+  const x = (v: number) => (max > 0 ? Math.min(100, Math.max(0, (v / max) * 100)) : 0);
+  return (
+    <div className="hbars" role="img" aria-label={`${label}: ${rows.map((r) => `${r.label} ${r.display}`).join("; ")}${target ? `; meta ${Math.round(target)}` : ""}`}>
+      {rows.map((r) => (
+        <div className="hbar" key={r.label}>
+          <span className="hbar-l">{r.label}</span>
+          <svg className="hbar-t range" viewBox="0 0 100 10" preserveAspectRatio="none" aria-hidden="true">
+            <rect x="0" y="3" width="100" height="4" className="trk" />
+            <rect x={x(r.lo)} y="2" width={Math.max(0.6, x(r.hi) - x(r.lo))} height="6" className="fill" />
+            <rect x={x(r.mid) - 0.3} y="0" width="0.6" height="10" className="mid" />
+            {target ? <line x1={x(target)} x2={x(target)} y1="0" y2="10" className="tgt" vectorEffect="non-scaling-stroke" /> : null}
+          </svg>
+          <span className="hbar-v">{r.display}</span>
+        </div>
+      ))}
+    </div>
+  );
+}

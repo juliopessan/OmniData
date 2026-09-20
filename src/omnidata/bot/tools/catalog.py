@@ -60,6 +60,7 @@ class UndoLast(BaseModel):
 TOOLS: dict[str, tuple[type[BaseModel], str]] = {
     "get_kpis": (Period, "Win rate com intervalo de confiança, ganho, ciclo e ticket do período."),
     "get_quota_status": (Period, "Atingimento da meta, gap, cobertura de pipeline."),
+    "get_forecast": (NoArgs, "Previsão: quanto o pipeline aberto ainda pode render e a chance de bater a meta, com faixa de incerteza."),
     "get_pipeline_summary": (NoArgs, "Negócios abertos por etapa: quantidade, valor e parados."),
     "get_deal": (GetDeal, "Detalhes de um negócio pelo nome."),
     "list_deals_needing_action": (ListNeedingAction, "Negócios que mais pedem atenção agora."),
@@ -78,7 +79,7 @@ TOOLS: dict[str, tuple[type[BaseModel], str]] = {
     "propose_deal_update": (ProposeDealUpdate, "Propor alteração de etapa, data de fechamento ou valor (exige confirmação)."),
     "undo_last": (UndoLast, "Desfazer a última ação registrada (até 24h)."),
 }
-READ_TOOLS = {"get_kpis", "get_quota_status", "get_pipeline_summary", "get_deal", "list_deals_needing_action", "get_morning_brief", "get_data_quality", "get_pains", "get_recurring_terms", "get_demand_types", "get_systems_landscape", "get_segment_insights", "get_insight_coverage", "get_insight_digest", "get_fix_queue"}
+READ_TOOLS = {"get_forecast", "get_kpis", "get_quota_status", "get_pipeline_summary", "get_deal", "list_deals_needing_action", "get_morning_brief", "get_data_quality", "get_pains", "get_recurring_terms", "get_demand_types", "get_systems_landscape", "get_segment_insights", "get_insight_coverage", "get_insight_digest", "get_fix_queue"}
 
 
 def schemas() -> list[dict[str, Any]]:

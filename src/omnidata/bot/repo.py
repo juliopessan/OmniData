@@ -142,3 +142,20 @@ def fix_queue(conn: Conn, p: Principal, limit: int = 8, today: date | None = Non
     deals = [Deal(r["hs_deal_id"], r["name"] or "", r["amount"], r["hs_owner_id"], r["owner_active"], r["close_date"], r["next_activity_at"], int(r["note_count"] or 0))
              for r in rows]
     return build(deals, today or datetime.now(ZoneInfo(get_settings().app_timezone)).date(), is_manager=p.role != "rep", limit=limit)
+
+
+def forecast(conn: Conn, p: Principal, period_start: date) -> dict[str, Any]:
+    """What the open pipeline can still add and the chance of reaching the quota. Read-only, serving.* only, scoped by Principal.
+    win/loss counts and open amounts come from the deals this person may see; realized and quota from the period's KPIs."""
+    from ..forecast.compute import forecast as build
+    clause, params = p.owner_clause()
+    q = quota_status(conn, p, period_start)
+    with conn.cursor() as cur:
+        cur.execute(f"select amount, is_open, is_won, is_lost, created_at from serving.v_deal_facts where {clause} limit 100000", params)
+        rows = cur.fetchall()
+    has_created = any(r["created_at"] is not None for r in rows)
+    wins = sum(1 for r in rows if r["is_won"])
+    losses = sum(1 for r in rows if r["is_lost"])
+    out = build([float(r["amount"] or 0) for r in rows if r["is_open"]], wins, losses, q["won_amount"], q["quota_amount"], has_created_at=has_created)
+    out["period"] = q["period"]
+    return out
