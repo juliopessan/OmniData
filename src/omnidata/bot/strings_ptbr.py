@@ -206,6 +206,8 @@ def tpl_digest(d: dict[str, Any]) -> str:
     bits = []
     if d.get("pain"):
         bits.append(f"dor mais citada: {d['pain']['pain']} ({d['pain']['deals']} negócios)")
+    elif d.get("pains_recorded") is not None:
+        bits.append(f"dores: só {d['pains_recorded']} negócio(s) com dor registrada, pouco para destacar")
     if d.get("demand"):
         bits.append(f"demanda que mais aparece: {d['demand']['key']} ({d['demand']['deals']})")
     if d.get("system"):

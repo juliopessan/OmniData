@@ -478,7 +478,7 @@ def _insight(conn: Conn, p: Principal, tool: str, a: dict[str, Any]) -> tuple[di
         return cov, S.tpl_coverage
     def top(k: str, sub: str) -> Any:
         return an[k][sub][0] if an[k][sub] else None
-    return {"pain": top("pains", "items"), "demand": top("demand_types", "items"), "system": top("systems", "items")}, S.tpl_digest
+    return {"pain": None if an["pains"]["low_n"] else top("pains", "items"), "pains_recorded": an["pains"]["with_pain"], "demand": top("demand_types", "items"), "system": top("systems", "items")}, S.tpl_digest
 
 
 _INSIGHTS_Q = re.compile(r"\b(insights?|panorama das empresas|radar das empresas)\b", re.IGNORECASE)

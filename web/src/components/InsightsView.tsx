@@ -104,7 +104,7 @@ export function InsightsView() {
           <section className="stack" style={{ gap: 12 }}>
             <div className="panel-t"><h2 className="h3">Tipo de demanda</h2><AgentTag k="altair" /></div>
             <GroupTable rows={a.demand} label="O que compram (sufixo do nome do negócio)" money />
-            <p className="note">Convenção: “Empresa – Demanda”. Ganho marcado com * tem menos de 20 fechados.</p>
+            <p className="note">Convenção: “Empresa – Demanda” ou “Cliente{"<>"}Parceiro [Demanda]”. Ganho marcado com * tem menos de 20 fechados.</p>
           </section>
 
           <section className="stack" style={{ gap: 12 }}>
@@ -120,7 +120,7 @@ export function InsightsView() {
           </section>
 
           <div className="agent-row"><AgentTag k="aurora" /><span className="note">
-            insight do dia: {a.pains.items[0] ? `dor mais citada, ${a.pains.items[0].pain}` : "sem dor registrada"}{a.demand[0] ? `; demanda que mais aparece, ${a.demand[0].key}` : ""}{a.systems.all[0] ? `; sistema mais citado, ${a.systems.all[0].system}` : ""}.</span></div>
+            insight do dia: {a.pains.items[0] && !a.pains.lowN ? `dor mais citada, ${a.pains.items[0].pain}` : `dores: só ${a.pains.withPain} negócio(s) com dor registrada, pouco para destacar`}{a.demand[0] ? `; demanda que mais aparece, ${a.demand[0].key}` : ""}{a.systems.all[0] ? `; sistema mais citado, ${a.systems.all[0].system}` : ""}.</span></div>
         </>
       )}
     </>
