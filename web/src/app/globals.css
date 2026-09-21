@@ -291,7 +291,7 @@ td .sub { display: block; font-size: 12px; color: var(--ink-soft); }
 .hbar-t.range { height: 14px; }
 .hbar-t .mid { fill: var(--paper); }
 .hbar-t .tgt { stroke: var(--ink); stroke-width: 1.5; stroke-dasharray: 3 2; }
-.fc-inputs { display: flex; gap: 14px; flex-wrap: wrap; align-items: end; }
+.fc-inputs { display: flex; gap: 14px; flex-wrap: wrap; align-items: flex-end; }
 .fc-inputs label { display: flex; flex-direction: column; gap: 4px; font-family: var(--mono); font-size: 11px; color: var(--ink-faint); }
 .fc-inputs input { font: inherit; font-family: var(--mono); font-size: 14px; padding: 8px 10px; border: 1px solid var(--rule); background: var(--paper); color: var(--ink); width: 180px; }
 /* Impressão / PDF do Reunião de vendas: A4, fundo branco, seções que fluem sem buracos e a página de decisões à parte */

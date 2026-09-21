@@ -1,3 +1,6 @@
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
 /** @type {import('next').NextConfig} */
 // NEXT_DIST_DIR permite builds/servidores de teste em paralelo sem sobrescrever o .next do `npm run dev` de quem está desenvolvendo.
 // Nesse caso o Next também reescreve o tsconfig; NEXT_TSCONFIG aponta para uma cópia descartável (tsconfig.iso.json, ignorada pelo git).
@@ -29,8 +32,12 @@ const securityHeaders = [
   // HSTS não é definido aqui de propósito: a Vercel já envia max-age=63072000; includeSubDomains; preload, e um valor nosso o enfraqueceria.
 ];
 
+// Raiz do projeto fixa: sem isso o Next escolhe o lockfile mais alto que achar (ex.: um bun.lock solto na pasta do usuário) e avisa.
+const root = path.dirname(fileURLToPath(import.meta.url));
+
 export default {
   reactStrictMode: true,
+  outputFileTracingRoot: root,
   poweredByHeader: false,
   distDir: process.env.NEXT_DIST_DIR || ".next",
   async headers() {
