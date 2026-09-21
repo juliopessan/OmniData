@@ -170,7 +170,7 @@ td .sub { display: block; font-size: 12px; color: var(--ink-soft); }
 
 /* Dashboard */
 .app { display: grid; grid-template-columns: 236px 1fr; min-height: 100vh; }
-.side { border-right: 1px solid var(--rule); padding: 22px 18px; display: flex; flex-direction: column; gap: 28px; position: sticky; top: 0; height: 100vh; }
+.side { border-right: 1px solid var(--rule); padding: 22px 18px; display: flex; flex-direction: column; gap: 28px; position: sticky; top: 0; height: 100vh; overflow-y: auto; }
 .side nav { display: flex; flex-direction: column; gap: 2px; }
 .side nav a { padding: 9px 12px; font-size: 13.5px; color: var(--ink-soft); border-left: 2px solid transparent; display: flex; justify-content: space-between; align-items: center; }
 .side nav a:hover { color: var(--ink); }
@@ -183,9 +183,11 @@ td .sub { display: block; font-size: 12px; color: var(--ink-soft); }
 @media (max-width: 1000px) { .grid2 { grid-template-columns: 1fr; } }
 .panel-t { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding-bottom: 12px; border-bottom: 1px solid var(--ink); margin-bottom: 4px; }
 @media (max-width: 800px) {
-  .app { grid-template-columns: 1fr; }
-  .side { position: static; height: auto; flex-direction: row; flex-wrap: wrap; align-items: center; padding: 14px 16px; border-right: none; border-bottom: 1px solid var(--rule); gap: 12px; }
-  .side nav { flex-direction: row; overflow-x: auto; width: 100%; order: 3; }
+  /* minmax(0, 1fr): com 1fr o menu (nowrap) impunha 820px de largura mínima e a página inteira estourava no celular */
+  .app { grid-template-columns: minmax(0, 1fr); }
+  .side { position: static; height: auto; flex-direction: row; flex-wrap: wrap; align-items: center; padding: 14px 16px; border-right: none; border-bottom: 1px solid var(--rule); gap: 12px; min-width: 0; }
+  /* o menu quebra em linhas: nenhum item fica escondido atrás de uma rolagem lateral sem indicação */
+  .side nav { flex-direction: row; flex-wrap: wrap; width: 100%; order: 3; }
   .side nav a { border-left: none; border-bottom: 2px solid transparent; white-space: nowrap; }
   .side nav a[aria-current="page"] { border-bottom-color: var(--ink); }
   .side .who { display: none; }
