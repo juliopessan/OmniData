@@ -100,7 +100,7 @@ export function ReuniaoView() {
       <SourceBanner />
       {!ready && (
         <div className="rule-note"><span className="rule-k">Sem dados para a reunião</span>
-          <p>O Modo reunião usa os negócios e as notas do seu arquivo. Envie o export em <Link href="/dashboard/datasets" style={{ textDecoration: "underline" }}>Datasets</Link>{stored && !stored.records ? " (recarregue o seu: ele foi salvo antes dos Insights)" : ""} e volte aqui.</p></div>
+          <p>A Reunião de vendas usa os negócios e as notas do seu arquivo. Envie o export em <Link href="/dashboard/datasets" style={{ textDecoration: "underline" }}>Datasets</Link>{stored && !stored.records ? " (recarregue o seu: ele foi salvo antes dos Insights)" : ""} e volte aqui.</p></div>
       )}
       {view && stored && (
         <>

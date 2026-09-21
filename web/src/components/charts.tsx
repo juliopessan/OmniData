@@ -1,4 +1,4 @@
-/** Gráficos do Modo reunião. SVG/HTML sem biblioteca, no padrão Ledger: tinta e traço fino; clay só para lacuna; nunca mint. */
+/** Gráficos do Reunião de vendas. SVG/HTML sem biblioteca, no padrão Ledger: tinta e traço fino; clay só para lacuna; nunca mint. */
 import type { ReactNode } from "react";
 
 export interface BarRow { label: string; value: number; display: string; note?: ReactNode }

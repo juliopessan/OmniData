@@ -256,7 +256,7 @@ td .sub { display: block; font-size: 12px; color: var(--ink-soft); }
 .minibar { display: block; height: 3px; margin-top: 6px; background: var(--rule); max-width: 220px; }
 .minibar i { display: block; height: 100%; background: var(--ink-soft); }
 
-/* Modo reunião: gráficos em tinta e traço fino; clay só para lacuna; sem sombras */
+/* Reunião de vendas: gráficos em tinta e traço fino; clay só para lacuna; sem sombras */
 .hbars { display: flex; flex-direction: column; gap: 10px; }
 .hbar { display: grid; grid-template-columns: minmax(120px, 34%) minmax(0, 1fr) auto; gap: 4px 14px; align-items: center; }
 .hbar-l { font-size: 13.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -292,7 +292,7 @@ td .sub { display: block; font-size: 12px; color: var(--ink-soft); }
 .fc-inputs { display: flex; gap: 14px; flex-wrap: wrap; align-items: end; }
 .fc-inputs label { display: flex; flex-direction: column; gap: 4px; font-family: var(--mono); font-size: 11px; color: var(--ink-faint); }
 .fc-inputs input { font: inherit; font-family: var(--mono); font-size: 14px; padding: 8px 10px; border: 1px solid var(--rule); background: var(--paper); color: var(--ink); width: 180px; }
-/* Impressão / PDF do Modo reunião: A4, fundo branco, seções que fluem sem buracos e a página de decisões à parte */
+/* Impressão / PDF do Reunião de vendas: A4, fundo branco, seções que fluem sem buracos e a página de decisões à parte */
 @page { size: A4; margin: 11mm 12mm 13mm; @bottom-left { content: "OmniData · Reunião de vendas"; font: 8px/1 monospace; color: #777; } @bottom-right { content: counter(page) " / " counter(pages); font: 8px/1 monospace; color: #777; } }
 .print-only { display: none; }
 @media print {
