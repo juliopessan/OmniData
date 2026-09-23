@@ -74,6 +74,10 @@
 - {id: end-06, tag: enderecamento, text: "Argus, qual o insight do dia?", kind: not_mine}
 - {id: end-07, tag: enderecamento, text: "Lyra", kind: intro}
 - {id: end-08, tag: enderecamento, text: "veganismo no escritório", kind: oos, menu_ok: true}
+# ---------- coach de vendas (Nova) ----------
+- {id: coach-01, tag: coach, text: "me ajuda com um script pra essa reunião", plan: [nova.get_playbook]}
+- {id: coach-02, tag: coach, text: "como quebro a objeção de preço?", plan: [nova.get_playbook]}
+- {id: coach-03, tag: coach, text: "me ajuda a montar a abordagem: o que costuma pesar mais pra esse tipo de cliente?", plan: [nova.get_playbook]}
 # ---------- equipe e preferências ----------
 - {id: eq-01, tag: equipe, text: "quem é a equipe?", kind: team}
 - {id: eq-02, tag: equipe, text: "quem são vocês?", kind: team}

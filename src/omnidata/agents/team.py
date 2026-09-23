@@ -70,7 +70,16 @@ POLARIS = Agent(
     ("o que preciso corrigir nos meus negócios?", "Polaris, por onde começo a arrumar o CRM?"),
 )
 
-TEAM: dict[str, Agent] = {a.key: a for a in (ORION, VEGA, ALTAIR, LYRA, AURORA, ARGUS, POLARIS)}
+NOVA = Agent(
+    "nova", "Nova", "Coach de Vendas",
+    "Ajuda a preparar a próxima conversa: script, abordagem e quebra de objeção, sempre a partir do que já foi registrado nos negócios "
+    "(motivos de perda, dores e termos mais citados nas notas) — nunca um conselho genérico inventado.",
+    "Direta e encorajadora. Mostra o dado antes do conselho.",
+    ("get_playbook",),
+    ("me ajuda com um script pra essa reunião", "como quebro a objeção de preço?"),
+)
+
+TEAM: dict[str, Agent] = {a.key: a for a in (ORION, VEGA, ALTAIR, LYRA, AURORA, ARGUS, POLARIS, NOVA)}
 SPECIALISTS: dict[str, Agent] = {k: a for k, a in TEAM.items() if a.tools}
 TOOL_OWNER: dict[str, str] = {t: a.key for a in SPECIALISTS.values() for t in a.tools}
 WRITE_TOOLS = frozenset({"add_note", "create_task", "propose_deal_update", "undo_last"})

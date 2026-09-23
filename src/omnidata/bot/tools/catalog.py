@@ -28,6 +28,11 @@ class SegmentArgs(BaseModel):
     limit: int = Field(default=5, ge=1, le=10)
 
 
+class PlaybookArgs(BaseModel):
+    topic: Literal["objection", "pitch", "pain"] = "objection"
+    limit: int = Field(default=5, ge=1, le=10)
+
+
 class GetDeal(BaseModel):
     query: str = Field(min_length=2, max_length=120)
 
@@ -74,12 +79,13 @@ TOOLS: dict[str, tuple[type[BaseModel], str]] = {
     "get_insight_coverage": (NoArgs, "Cobertura dos dados por insight: quanto do que foi dito é sustentado pelas notas."),
     "get_fix_queue": (InsightLimit, "Fila de correção dos dados: negócios abertos com lacunas (valor, data vencida, próximo passo, nota, nome) e quem corrige."),
     "get_insight_digest": (NoArgs, "Insight do dia: dor, demanda e sistema mais frequentes."),
+    "get_playbook": (PlaybookArgs, "Apoio de abordagem para a próxima conversa: quebra de objeção (motivos de perda reais), dores para explorar, ou termos e demandas mais citados — sempre a partir do que já foi registrado, nunca inventado."),
     "add_note": (AddNote, "Registrar uma nota em um negócio."),
     "create_task": (CreateTask, "Criar uma tarefa em um negócio."),
     "propose_deal_update": (ProposeDealUpdate, "Propor alteração de etapa, data de fechamento ou valor (exige confirmação)."),
     "undo_last": (UndoLast, "Desfazer a última ação registrada (até 24h)."),
 }
-READ_TOOLS = {"get_forecast", "get_kpis", "get_quota_status", "get_pipeline_summary", "get_deal", "list_deals_needing_action", "get_morning_brief", "get_data_quality", "get_pains", "get_recurring_terms", "get_demand_types", "get_systems_landscape", "get_segment_insights", "get_insight_coverage", "get_insight_digest", "get_fix_queue"}
+READ_TOOLS = {"get_forecast", "get_kpis", "get_quota_status", "get_pipeline_summary", "get_deal", "list_deals_needing_action", "get_morning_brief", "get_data_quality", "get_pains", "get_recurring_terms", "get_demand_types", "get_systems_landscape", "get_segment_insights", "get_insight_coverage", "get_insight_digest", "get_fix_queue", "get_playbook"}
 
 
 def schemas() -> list[dict[str, Any]]:

@@ -248,6 +248,30 @@ def tpl_fix_queue(d: dict[str, Any]) -> str:
     return "\n".join([head, *lines]) if lines else head + " Nada a corrigir agora."
 
 
+def tpl_playbook(d: dict[str, Any]) -> str:
+    topic = d.get("topic", "objection")
+    if topic == "objection":
+        items = d.get("items", [])
+        if not items:
+            return NO_INSIGHT
+        lines = " · ".join(f"{x['label']}: {x['deals']}" for x in items)
+        return (f"Motivos de perda mais comuns ({d.get('lost', 0)} negócios perdidos no período): {lines}. "
+                "Prepare uma resposta pra cada um antes da conversa: são objeções que já aconteceram de verdade, não hipóteses.")
+    if topic == "pain":
+        items = d.get("items", [])
+        if not items:
+            return NO_INSIGHT
+        lines = " · ".join(f"{x['pain']} ({x['deals']})" for x in items)
+        warn = " Amostra pequena: trate como indicativo." if d.get("low_n") else ""
+        return f"Dores mais citadas pra explorar na conversa: {lines}.{warn}"
+    demand, phrases = d.get("demand", []), d.get("phrases", [])
+    if not demand and not phrases:
+        return NO_INSIGHT
+    d_lines = ", ".join(f"{x['key']} ({x['deals']})" for x in demand)
+    p_lines = ", ".join(f"{x['term']} ({x['deals']})" for x in phrases) if phrases else "—"
+    return f"Pra abordagem: o que mais aparece pedido é {d_lines}. Frases que se repetem nas notas: {p_lines}. {CAUTION_OUTCOME}"
+
+
 def tpl_forecast(d: dict[str, Any]) -> str:
     if d.get("status") == "insufficient":
         return (f"Ainda não há base para prever: só {d['closed']} negócio(s) fechado(s) (o mínimo é {d['min_closed']}). "

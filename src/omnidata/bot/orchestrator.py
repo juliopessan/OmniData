@@ -444,6 +444,8 @@ def _read(conn: Conn, p: Principal, tool: str, a: dict[str, Any], today: date): 
         return _insight(conn, p, tool, a)
     if tool == "get_fix_queue":
         return repo.fix_queue(conn, p, int(a.get("limit", 5))), S.tpl_fix_queue
+    if tool == "get_playbook":
+        return _playbook(conn, p, a)
     if tool == "get_deal":
         found = repo.find_deals(conn, p, a["query"], 1)
         return (_deal_view(found[0]), S.tpl_deal) if found else (None, S.tpl_deal)
@@ -478,6 +480,17 @@ def _insight(conn: Conn, p: Principal, tool: str, a: dict[str, Any]) -> tuple[di
     def top(k: str, sub: str) -> Any:
         return an[k][sub][0] if an[k][sub] else None
     return {"pain": None if an["pains"]["low_n"] else top("pains", "items"), "pains_recorded": an["pains"]["with_pain"], "demand": top("demand_types", "items"), "system": top("systems", "items")}, S.tpl_digest
+
+
+def _playbook(conn: Conn, p: Principal, a: dict[str, Any]) -> tuple[dict[str, Any], Any]:
+    """Nova (Coach de Vendas): script/objection help, built only from what insight_analysis already computed from real notes."""
+    an = repo.insight_analysis(conn, p, 10)
+    topic, lim = a.get("topic", "objection"), int(a.get("limit", 5))
+    if topic == "objection":
+        return {"topic": topic, "lost": an["loss_reasons"]["lost"], "items": an["loss_reasons"]["taxonomy"][:lim]}, S.tpl_playbook
+    if topic == "pain":
+        return {"topic": topic, "with_pain": an["pains"]["with_pain"], "low_n": an["pains"]["low_n"], "items": an["pains"]["items"][:lim]}, S.tpl_playbook
+    return {"topic": topic, "demand": an["demand_types"]["items"][:lim], "phrases": an["terms"]["phrases"][:lim]}, S.tpl_playbook
 
 
 
