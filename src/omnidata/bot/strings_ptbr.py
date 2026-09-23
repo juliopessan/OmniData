@@ -89,6 +89,19 @@ def tpl_quota(d: dict[str, Any]) -> str:
             f"Ganho {brl(d.get('won_amount'))}; falta {brl(d.get('gap'))}.{cov}")
 
 
+def tpl_team_status(d: dict[str, Any]) -> str:
+    reps = d.get("reps", [])
+    if not reps:
+        return NO_DATA
+    if len(reps) == 1:
+        r = reps[0]
+        return (f"*{r['name']}*: {pct(r['attainment'])} da meta" if r["quota_amount"] is not None else f"*{r['name']}*: sem meta cadastrada no período") + \
+               (f", {r['open_issues']} negócio(s) sem próximo passo." if r["open_issues"] else ".")
+    lines = " · ".join(f"{r['name']}: {pct(r['attainment']) if r['quota_amount'] is not None else 'sem meta'}"
+                       + (f" ({r['open_issues']} sem próximo passo)" if r["open_issues"] else "") for r in reps)
+    return f"Time, do mais atrás ao mais adiantado: {lines}. Priorize 1:1 pelos primeiros da lista."
+
+
 def tpl_pipeline(d: dict[str, Any]) -> str:
     rows = d.get("stages", [])
     if not rows:

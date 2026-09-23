@@ -435,6 +435,8 @@ def _read(conn: Conn, p: Principal, tool: str, a: dict[str, Any], today: date): 
         return repo.kpis(conn, p, repo.month_start(today, a["period"])), S.tpl_kpis
     if tool == "get_quota_status":
         return repo.quota_status(conn, p, repo.month_start(today, a["period"])), S.tpl_quota
+    if tool == "get_team_status":
+        return repo.team_status(conn, p, repo.month_start(today, a["period"])), S.tpl_team_status
     if tool == "get_pipeline_summary":
         return repo.pipeline_summary(conn, p), S.tpl_pipeline
     if tool == "list_deals_needing_action":

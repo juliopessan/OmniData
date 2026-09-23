@@ -54,6 +54,32 @@ def quota_status(conn: Conn, p: Principal, period_start: date) -> dict[str, Any]
             "required_coverage": round(1 / wr, 1) if wr else None}
 
 
+def team_status(conn: Conn, p: Principal, period_start: date) -> dict[str, Any]:
+    """For managers: attainment + open hygiene issues per rep this Principal can see, worst attainment first, to help
+    prioritize 1:1s. For a rep, owner_clause() naturally narrows this to just themselves — same scoping, no special case."""
+    k_clause, k_params = p.owner_clause("k.hs_owner_id")
+    with conn.cursor() as cur:
+        cur.execute(f"select k.hs_owner_id, o.first_name, o.last_name, sum(k.quota_amount) q, coalesce(sum(k.won_amount),0) w, sum(k.gap) g "
+                    f"from serving.v_rep_kpis k left join silver.owner o using (hs_owner_id) "
+                    f"where k.period_start = %s and {k_clause} "
+                    f"group by k.hs_owner_id, o.first_name, o.last_name", [period_start, *k_params])
+        kpi_rows = cur.fetchall()
+        clause, params = p.owner_clause()
+        cur.execute(f"select hs_owner_id, count(*) filter (where next_activity_at is null) n from serving.v_hygiene_facts "
+                    f"where {clause} group by hs_owner_id", params)
+        issues = {r["hs_owner_id"]: r["n"] for r in cur.fetchall()}
+    reps = []
+    for r in kpi_rows:
+        quota = float(r["q"]) if r["q"] is not None else None
+        won = float(r["w"])
+        name = f"{r['first_name'] or ''} {r['last_name'] or ''}".strip() or r["hs_owner_id"]
+        reps.append({"hs_owner_id": r["hs_owner_id"], "name": name, "quota_amount": quota, "won_amount": won,
+                     "gap": float(r["g"]) if r["g"] is not None else None, "attainment": (won / quota) if quota else None,
+                     "open_issues": issues.get(r["hs_owner_id"], 0)})
+    reps.sort(key=lambda x: x["attainment"] if x["attainment"] is not None else -1)
+    return {"period": period_start.isoformat(), "reps": reps}
+
+
 def pipeline_summary(conn: Conn, p: Principal) -> dict[str, Any]:
     clause, params = p.owner_clause()
     with conn.cursor() as cur:
