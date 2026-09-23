@@ -491,6 +491,32 @@ async def test_alert_engine_budget_quiet_hours_snooze_and_telemetry(world):  # F
     assert r["viewed_at"] and r["snoozed_until"] > datetime.now(UTC) + timedelta(days=2) and r["acted_at"] and eff
 
 
+async def test_consecutive_steps_from_the_same_specialist_are_not_re_signed(world):
+    # real bug found in a production transcript: "*Vega*: ... *Vega*: ..." when two plan steps both land on Vega
+    conn, gw, w, s, _ = world
+    llm = FakeLlm(tool=ToolCall("plan", {"steps": [{"agent": "vega", "tool": "get_quota_status", "args": {}},
+                                                    {"agent": "vega", "tool": "get_team_status", "args": {}}]}))
+    out = await say(conn, deps(gw, w, s, llm), REP_A, "meta e status do time")
+    assert out["body"].count("*Vega*:") == 1
+
+
+async def test_evening_recap_reports_real_progress_and_respects_the_daily_gate(world):
+    conn, gw, w, s, ids = world
+    monday = datetime(2026, 9, 21, 21, 0, tzinfo=UTC)  # 18:00 in Sao Paulo
+    with conn.cursor() as cur:
+        cur.execute("update silver.deal set is_won=true, is_open=false, closed_at=%s where hs_deal_id = "
+                    "(select hs_deal_id from silver.deal where hs_owner_id='9000' and is_open limit 1)", (monday,))
+    conn.commit()
+
+    assert await engine.evening_recaps(conn, gw, now=monday) == 3
+    assert await engine.evening_recaps(conn, gw, now=monday) == 0  # already sent today
+    ana = next(m for m in gw.sent if m["to"] == REP_A)
+    assert "fechou 1 negócio" in ana["body"]
+
+    saturday = datetime(2026, 9, 26, 21, 0, tzinfo=UTC)
+    assert await engine.evening_recaps(conn, gw, now=saturday) == 0
+
+
 async def test_morning_brief_template_once_per_day_business_days_only(world):  # FR-BOT-4
     conn, gw, w, s, _ = world
     monday = datetime(2026, 9, 21, 12, 0, tzinfo=UTC)  # 09:00 in Sao Paulo, past 07:30
@@ -500,4 +526,4 @@ async def test_morning_brief_template_once_per_day_business_days_only(world):  #
     saturday = datetime(2026, 9, 26, 12, 0, tzinfo=UTC)
     assert await engine.morning_briefs(conn, gw, now=saturday) == 0
     out = await say(conn, deps(gw, w, s), REP_A, reply="act:open:brief")      # 'Ver meu dia' returns the ranked brief
-    assert "Bom dia" in out["body"]
+    assert any(g in out["body"] for g in ("Bom dia", "Boa tarde", "Boa noite"))  # greeting is hour-sensitive (real clock here)

@@ -7,6 +7,7 @@ from zoneinfo import ZoneInfo
 
 import psycopg
 
+from ..bot import strings_ptbr as S
 from ..bot.gateway import MessagingGateway
 from ..config import Settings
 
@@ -115,6 +116,46 @@ async def morning_briefs(conn: Conn, gw: MessagingGateway, now: datetime | None 
         await gw.send_template(u["phone_e164"], "morning_brief_v1", [u["display_name"] or "", str(min(k, 5))], quick_reply_payload="act:open:brief")
         with conn.cursor() as cur:
             cur.execute("insert into app.audit_log (user_id, event, detail) values (%s,'morning_brief_sent', jsonb_build_object('date', %s::text))",
+                        (u["id"], local.date().isoformat()))
+        conn.commit()
+        n += 1
+    return n
+
+
+async def evening_recaps(conn: Conn, gw: MessagingGateway, now: datetime | None = None) -> int:
+    """Push at (or after) 18:00 local time: what got done today + where to start tomorrow. Same gate/dedupe shape as
+    morning_briefs, but sends the text straight away — send_template is a Meta Cloud API leftover Evolution just
+    flattens to plain text anyway (bot/evolution.py), so there is no reason to make the seller tap a button first."""
+    now = now or datetime.now(UTC)
+    n = 0
+    with conn.cursor() as cur:
+        cur.execute("select id, hs_owner_id, phone_e164, display_name, timezone from app.app_user where status='active'")
+        users = cur.fetchall()
+    for u in users:
+        local = now.astimezone(ZoneInfo(u["timezone"]))
+        if local.weekday() >= 5 or local.time() < time(18, 0):
+            continue
+        with conn.cursor() as cur:
+            cur.execute("select 1 from app.audit_log where user_id=%s and event='evening_recap_sent' and (detail->>'date') = %s",
+                        (u["id"], local.date().isoformat()))
+            if cur.fetchone():
+                continue
+        day = local.date()
+        with conn.cursor() as cur:
+            cur.execute("select count(*) n, coalesce(sum(amount),0) amt from silver.deal "
+                        "where hs_owner_id=%s and is_won and closed_at::date = %s", (u["hs_owner_id"], day))
+            won = cur.fetchone()
+            cur.execute("select count(*) n from serving.v_activity where hs_owner_id=%s and activity_type='note' and occurred_at::date = %s",
+                        (u["hs_owner_id"], day))
+            notes = cur.fetchone()
+            cur.execute("select name from serving.v_deal_health where hs_owner_id=%s and cardinality(health_flags) > 0 "
+                        "order by attention_score desc limit 3", (u["hs_owner_id"],))
+            tomorrow = [{"name": r["name"]} for r in cur.fetchall()]
+        text = S.tpl_evening_recap({"name": u["display_name"], "won_count": int(won["n"]), "won_amount": float(won["amt"]),
+                                    "notes_count": int(notes["n"]), "tomorrow": tomorrow})
+        await gw.send_text(u["phone_e164"], text)
+        with conn.cursor() as cur:
+            cur.execute("insert into app.audit_log (user_id, event, detail) values (%s,'evening_recap_sent', jsonb_build_object('date', %s::text))",
                         (u["id"], local.date().isoformat()))
         conn.commit()
         n += 1

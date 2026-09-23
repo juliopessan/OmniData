@@ -111,13 +111,17 @@ def tpl_pipeline(d: dict[str, Any]) -> str:
     return "Seu pipeline:\n" + "\n".join(lines)
 
 
+FIX_QUEUE_SUGGESTION = "\n\nQuer ver o que está faltando nos seus negócios? Pergunte à Polaris."
+
+
 def tpl_attention(d: dict[str, Any]) -> str:
     deals = d.get("deals", [])
     if not deals:
         return NO_ATTENTION
     lines = [f"{i}. *{x['name']}* ({brl(x['amount'])}) — " + ", ".join(FLAG_TEXT.get(f, f) for f in x["flags"])
              for i, x in enumerate(deals, 1)]
-    return "Negócios que pedem ação:\n" + "\n".join(lines)
+    out = "Negócios que pedem ação:\n" + "\n".join(lines)
+    return out + FIX_QUEUE_SUGGESTION if d.get("suggest_fix_queue") else out
 
 
 def goal_desc(goal_type: str, target: float) -> str:
@@ -141,8 +145,28 @@ def tpl_goal_status(d: dict[str, Any]) -> str:
     return line or "Você não tem uma meta pessoal ativa. Diga algo como “quero fechar 3 negócios até sexta” pra eu acompanhar."
 
 
+def _greeting(hour: int | None) -> str:
+    if hour is None or hour < 12:
+        return "Bom dia"
+    return "Boa tarde" if hour < 18 else "Boa noite"
+
+
+def tpl_evening_recap(d: dict[str, Any]) -> str:
+    head = f"Fechando o dia{', ' + d['name'] if d.get('name') else ''}! "
+    did = []
+    if d.get("won_count"):
+        did.append(f"você fechou {d['won_count']} negócio(s) ({brl(d.get('won_amount'))})")
+    if d.get("notes_count"):
+        did.append(f"registrou {d['notes_count']} nota(s)")
+    body = head + ((", ".join(did) + ".") if did else "nenhum negócio fechado ou nota registrada hoje.")
+    tomorrow = d.get("tomorrow", [])
+    if tomorrow:
+        body += "\n\nAmanhã, comece por: " + " · ".join(f"*{x['name']}*" for x in tomorrow) + "."
+    return body
+
+
 def tpl_brief(d: dict[str, Any]) -> str:
-    head = f"Bom dia{', ' + d['name'] if d.get('name') else ''}! "
+    head = f"{_greeting(d.get('hour'))}{', ' + d['name'] if d.get('name') else ''}! "
     parts = [head + tpl_quota(d["quota"])]
     goal_line = _goal_line(d.get("goal") or {})
     if goal_line:
@@ -295,7 +319,8 @@ def tpl_playbook(d: dict[str, Any]) -> str:
             return NO_INSIGHT
         lines = " · ".join(f"{x['label']}: {x['deals']}" for x in items)
         return (f"Motivos de perda mais comuns ({d.get('lost', 0)} negócios perdidos no período): {lines}. "
-                "Prepare uma resposta pra cada um antes da conversa: são objeções que já aconteceram de verdade, não hipóteses.")
+                "Prepare uma resposta pra cada um antes da conversa: são objeções que já aconteceram de verdade, não hipóteses.\n\n"
+                "Quer que a Lyra registre uma nota sobre isso?")
     if topic == "pain":
         items = d.get("items", [])
         if not items:

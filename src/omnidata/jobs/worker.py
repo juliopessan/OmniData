@@ -108,6 +108,9 @@ async def run(s: Settings | None = None) -> None:
     async def briefs() -> None:
         await _locked(7003, lambda conn: engine.morning_briefs(conn, gw))
 
+    async def recap() -> None:
+        await _locked(7006, lambda conn: engine.evening_recaps(conn, gw))
+
     async def housekeeping() -> None:
         async def job(conn):  # type: ignore[no-untyped-def]
             actions.expire_pending(conn)
@@ -133,6 +136,7 @@ async def run(s: Settings | None = None) -> None:
     sched = AsyncIOScheduler(timezone=s.app_timezone)
     sched.add_job(ingest_and_alert, "interval", minutes=15, next_run_time=datetime.now(UTC), max_instances=1, coalesce=True)
     sched.add_job(briefs, "interval", minutes=5, max_instances=1, coalesce=True)
+    sched.add_job(recap, "interval", minutes=5, max_instances=1, coalesce=True)
     sched.add_job(housekeeping, "interval", minutes=5, max_instances=1, coalesce=True)
     sched.add_job(snapshot, "cron", day_of_week="mon", hour=2)
     sched.add_job(nightly_backup, "cron", hour=3)

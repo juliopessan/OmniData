@@ -9,6 +9,7 @@ import uuid
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, timedelta
 from typing import Any
+from zoneinfo import ZoneInfo
 
 import psycopg
 from psycopg.types.json import Jsonb
@@ -396,6 +397,7 @@ async def run_plan(conn: Conn, deps: Deps, p: Principal, steps: list[Step], orig
     run_id = str(uuid.uuid4())
     parts: list[str] = []
     last = Reply("")
+    last_agent: str | None = None
     for i, st in enumerate(steps):
         t0 = time.monotonic()
         try:
@@ -407,9 +409,15 @@ async def run_plan(conn: Conn, deps: Deps, p: Principal, steps: list[Step], orig
             raise
         _log_step(conn, p, st.agent, st.tool, "ok", int((time.monotonic() - t0) * 1000), run_id, i)
         _ = status
+        text = r.text
+        if st.agent == last_agent:  # same specialist as the step before: don't re-sign, "*Vega*: ... *Vega*: ..." reads odd
+            prefix = f"*{T.TEAM[st.agent].name}*: "
+            if text.startswith(prefix):
+                text = text[len(prefix):]
+        last_agent = st.agent
         if r.list_rows:  # a specialist needs the user to pick something: stop the plan here
-            return Reply("\n\n".join([*parts, r.text]), list_rows=r.list_rows, list_button=r.list_button)
-        parts.append(r.text)
+            return Reply("\n\n".join([*parts, text]), list_rows=r.list_rows, list_button=r.list_button)
+        parts.append(text)
         last = r
     return Reply("\n\n".join(parts), buttons=last.buttons)
 
@@ -452,7 +460,7 @@ async def _run_tool_raw(conn: Conn, deps: Deps, p: Principal, tool: str | None, 
     if tool == "set_goal":  # local write, no HubSpot involved — must run before the `deps.writer` gate below
         return _set_goal(conn, p, a)
     if tool in catalog.READ_TOOLS:
-        data, template = _read(conn, p, tool, a, today)
+        data, template = _read(conn, deps, p, tool, a, today)
         if data is None:
             return Reply(S.NO_MATCH_DEAL.format(q=a.get("query", "")))
         return Reply(await _narrate(conn, deps, p, data, template, T.agent_for_tool(tool), original_text))
@@ -467,7 +475,7 @@ async def _run_tool_raw(conn: Conn, deps: Deps, p: Principal, tool: str | None, 
     return await _run_write(conn, deps, p, tool, a)
 
 
-def _read(conn: Conn, p: Principal, tool: str, a: dict[str, Any], today: date):  # type: ignore[no-untyped-def]
+def _read(conn: Conn, deps: Deps, p: Principal, tool: str, a: dict[str, Any], today: date):  # type: ignore[no-untyped-def]
     if tool == "get_kpis":
         return repo.kpis(conn, p, repo.month_start(today, a["period"])), S.tpl_kpis
     if tool == "get_quota_status":
@@ -477,10 +485,15 @@ def _read(conn: Conn, p: Principal, tool: str, a: dict[str, Any], today: date): 
     if tool == "get_pipeline_summary":
         return repo.pipeline_summary(conn, p), S.tpl_pipeline
     if tool == "list_deals_needing_action":
-        return repo.deals_needing_action(conn, p, a["limit"]), S.tpl_attention
+        d = repo.deals_needing_action(conn, p, a["limit"])
+        d["suggest_fix_queue"] = bool(repo.fix_queue(conn, p, limit=1).get("queue"))
+        return d, S.tpl_attention
     if tool == "get_morning_brief":
-        d = {"name": p.display_name, "quota": repo.quota_status(conn, p, repo.month_start(today)),
-             "attention": repo.deals_needing_action(conn, p, 5), "goal": repo.goal_status(conn, p, today)}
+        hour = datetime.now(ZoneInfo(deps.settings.app_timezone)).hour
+        attention = repo.deals_needing_action(conn, p, 5)
+        attention["suggest_fix_queue"] = bool(repo.fix_queue(conn, p, limit=1).get("queue"))
+        d = {"name": p.display_name, "hour": hour, "quota": repo.quota_status(conn, p, repo.month_start(today)),
+             "attention": attention, "goal": repo.goal_status(conn, p, today)}
         return d, S.tpl_brief
     if tool == "get_goal_status":
         return repo.goal_status(conn, p, today), S.tpl_goal_status

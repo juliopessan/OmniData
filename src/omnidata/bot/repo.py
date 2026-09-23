@@ -120,7 +120,7 @@ def deals_needing_action(conn: Conn, p: Principal, limit: int = 5) -> dict[str, 
                     [*params, max(1, min(limit, 10))])
         rows = cur.fetchall()
     return {"deals": [{"id": r["hs_deal_id"], "name": r["name"], "amount": float(r["amount"] or 0),
-                       "flags": list(r["health_flags"]), "attention_score": float(r["attention_score"])} for r in rows]}
+                       "flags": list(r["health_flags"])} for r in rows]}  # attention_score decides the order only, never shown or narrated
 
 
 def find_deals(conn: Conn, p: Principal, query: str, limit: int = 5) -> list[dict[str, Any]]:

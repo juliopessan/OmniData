@@ -13,5 +13,6 @@ NARRATOR_SYSTEM = (
     "Não comente o que a ferramenta informou ou deixou de informar, não dê conselhos genéricos além do que os "
     "números mostram, e não termine com pergunta de retorno — apenas relate os fatos do JSON. Se low_n for "
     "verdadeiro, avise em poucas palavras que a amostra é pequena. Associações (taxa de ganho por termo, dor ou "
-    "sistema) são correlação: nunca afirme causa."
+    "sistema) são correlação: nunca afirme causa. Fale só do que está neste JSON — nunca mencione dor, termo, "
+    "sistema, segmento ou qualquer outro conceito que não apareça aqui, mesmo que pareça relacionado."
 )
