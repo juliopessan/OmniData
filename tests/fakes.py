@@ -92,3 +92,26 @@ class FakeTranscriber:
         if self.error:
             raise TranscribeError(self.error)
         return Transcript(self.text, self.model, self.seconds, round(0.0045 * self.seconds / 60, 6), 300)
+
+
+class FakeEmbeddings:
+    """Deterministic, no network: same text -> same vector, so tests can assert nearest-match ordering."""
+    def embed(self, texts: list[str]) -> list[list[float]]:
+        return [[float((hash(t) >> (8 * i)) % 997) for i in range(4)] for t in texts]
+
+
+class FakeVectorStore:
+    """In-memory stand-in for Chroma (ADR 0009). query() ignores `where` on purpose: the point of the permission tests is
+    that bot/repo.py::meeting_transcripts_by_ids re-checks ownership in Postgres regardless of what the index returns."""
+    def __init__(self) -> None:
+        self.rows: dict[str, tuple[list[float], dict[str, Any]]] = {}
+
+    def upsert(self, ids: list[str], embeddings: list[list[float]], metadatas: list[dict[str, Any]]) -> None:
+        for i, e, m in zip(ids, embeddings, metadatas, strict=True):
+            self.rows[i] = (e, m)
+
+    def query(self, embedding: list[float], limit: int, where: dict[str, Any] | None = None) -> list[tuple[str, float]]:
+        def dist(v: list[float]) -> float:
+            return sum((a - b) ** 2 for a, b in zip(embedding, v, strict=True))
+        ranked = sorted(self.rows.items(), key=lambda kv: dist(kv[1][0]))
+        return [(i, dist(v)) for i, (v, _) in ranked[:limit]]

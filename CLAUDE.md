@@ -10,6 +10,8 @@ Purpose: WhatsApp sales assistant on a HubSpot-fed Postgres store. Source of tru
 - Routing without LLM is `bot/routing.py` (pure; used by the orchestrator AND `evals/planner.py`); keyword rules in `bot/router.py`. Writes never fall back to a read.
 - Forecast (Vega `get_forecast`): `forecast/` (pure statistical layer; ML gate `ml_status`, layer 2 NOT built, ADR 0007); TS port `web/src/lib/forecast.ts` (standalone, same PRNG; a test runs it in Node and compares bit for bit). Never show a probability below `MIN_CLOSED`; flag `backlog`.
 - Coach (Polaris): `hygiene/` (spec + compute, puro; `omnidata hygiene spec > web/src/lib/hygiene-spec.json`), view `serving.v_hygiene_facts` (0010), tool `get_fix_queue` (read-only; fixes go through Lyra); port TS em `web/src/lib/hygiene.ts`.
+- Coach de vendas (Nova): tool `get_playbook`, reaproveita `repo.insight_analysis` (motivos de perda, dores, termos); nunca conselho inventado, só o que já está registrado.
+- Memória de reuniões (Atlas, ADR 0009): `rag/` (embeddings.py, chroma.py — clientes síncronos, mesmo padrão de `repo.py`), `transcripts/` (synth.py = transcrições sintéticas sobre negócios reais; ingest.py = embed + upsert no Chroma), tabela `app.meeting_transcript` + `serving.v_meeting_transcript`, tool `search_meeting_notes`. Chroma é só índice semântico; a permissão é sempre decidida de novo no Postgres via `Principal.owner_clause()` antes de qualquer trecho virar resposta (regra 7). CLI: `omnidata transcripts seed|search`.
 - `web/` Next.js front-end (landing, auth, dashboard) with the Ledger design system; synthetic data only.
 
 ## Commands

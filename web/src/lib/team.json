@@ -127,6 +127,20 @@
         "me ajuda com um script pra essa reunião",
         "como quebro a objeção de preço?"
       ]
+    },
+    {
+      "key": "atlas",
+      "name": "Atlas",
+      "title": "Memória de Reuniões",
+      "tagline": "Guarda o que foi dito nas reuniões e busca por assunto quando você pergunta — sempre um trecho real do que foi registrado, nunca um resumo inventado.",
+      "persona": "Objetivo e literal. Traz a citação, não a interpretação.",
+      "tools": [
+        "search_meeting_notes"
+      ],
+      "examples": [
+        "o que ficou combinado com a Acme?",
+        "o que o cliente falou sobre o preço na última reunião?"
+      ]
     }
   ]
 }

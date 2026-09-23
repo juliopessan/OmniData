@@ -21,6 +21,8 @@ from ..llm import prompts
 from ..llm.base import LlmClient, LlmError, Usage
 from ..llm.guard import numbers_ok
 from ..llm.transcribe import TranscribeError, Transcriber
+from ..rag.chroma import VectorStore
+from ..rag.embeddings import Embeddings
 from ..security.pii_masking import mask_pii
 from ..security.principal import Principal, resolve_by_phone
 from . import actions, repo
@@ -43,6 +45,8 @@ class Deps:
     llm: LlmClient | None
     settings: Settings
     transcriber: Transcriber | None = None
+    embeddings: Embeddings | None = None
+    vector_store: VectorStore | None = None
     today: date | None = None
 
 
@@ -407,6 +411,9 @@ async def _run_tool_raw(conn: Conn, deps: Deps, p: Principal, tool: str | None, 
         return Reply(S.MENU_BODY, list_rows=[(f"menu:{k}", t, d) for k, t, d in S.MENU_ROWS], list_button=S.MENU_TITLE[:20])
     today = deps.today or datetime.now(UTC).date()
     a = parsed.model_dump()
+    if tool == "search_meeting_notes":
+        data, template = _search_meetings(conn, deps, p, a)
+        return Reply(await _narrate(conn, deps, p, data, template, T.agent_for_tool(tool)))
     if tool in catalog.READ_TOOLS:
         data, template = _read(conn, p, tool, a, today)
         if data is None:
@@ -491,6 +498,22 @@ def _playbook(conn: Conn, p: Principal, a: dict[str, Any]) -> tuple[dict[str, An
     if topic == "pain":
         return {"topic": topic, "with_pain": an["pains"]["with_pain"], "low_n": an["pains"]["low_n"], "items": an["pains"]["items"][:lim]}, S.tpl_playbook
     return {"topic": topic, "demand": an["demand_types"]["items"][:lim], "phrases": an["terms"]["phrases"][:lim]}, S.tpl_playbook
+
+
+def _search_meetings(conn: Conn, deps: Deps, p: Principal, a: dict[str, Any]) -> tuple[dict[str, Any], Any]:
+    """Atlas (ADR 0009): Chroma finds candidates by meaning; Postgres, via Principal.owner_clause(), decides what this
+    seller may actually see. A Chroma result that fails that check is dropped here, before it ever becomes a reply."""
+    if not deps.embeddings or not deps.vector_store:
+        return {"items": []}, S.tpl_meetings
+    limit = int(a.get("limit", 3))
+    vec = deps.embeddings.embed([mask_pii(a.get("query", ""))])[0]
+    candidates = deps.vector_store.query(vec, limit=limit * 3)
+    rows = repo.meeting_transcripts_by_ids(conn, p, [tid for tid, _ in candidates])
+    order = {tid: i for i, (tid, _) in enumerate(candidates)}
+    rows.sort(key=lambda r: order.get(str(r["id"]), len(candidates)))
+    items = [{"deal_name": r["deal_name"], "occurred_at": r["occurred_at"].date().isoformat(), "excerpt": r["text"][:220]}
+             for r in rows[:limit]]
+    return {"items": items}, S.tpl_meetings
 
 
 

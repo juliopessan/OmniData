@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState, type ReactNode } from "react";
 import { Chat, type ChatMsg } from "./Chat";
 import { Fig, Flag } from "./Ledger";
 import { API_URL, fetchConversations, fetchMessages, type ConversationRow, type MessageRow } from "@/lib/cockpit";
@@ -9,13 +9,23 @@ const KIND_LABEL: Record<string, string> = { audio: "🎤 Áudio", buttons: "op�
 function preview(c: ConversationRow): string {
   if (c.last_preview) return c.last_preview;
   if (c.last_kind && c.last_kind in KIND_LABEL) return KIND_LABEL[c.last_kind];
-  return c.last_received_at ? "mensagem (sem texto salvo)" : "sem conversa ainda";
+  return c.last_received_at ? "mensagem antiga (sem texto salvo)" : "sem conversa ainda";
+}
+
+/** WhatsApp manda *negrito* como asterisco simples — o Chat, ao contrário da página estática de exemplo, mostra texto
+ * real do bot, então precisa interpretar isso em vez de exibir o asterisco literal. */
+function renderWaText(text: string): ReactNode {
+  const parts = text.split(/(\*[^*]+\*)/g);
+  return parts.map((p, i) => {
+    const m = /^\*([^*]+)\*$/.exec(p);
+    return m ? <b key={i}>{m[1]}</b> : <Fragment key={i}>{p}</Fragment>;
+  });
 }
 
 function toMsgs(rows: MessageRow[]): ChatMsg[] {
   return rows.map((r) => ({
     me: r.direction === "in",
-    text: (r.text ?? (KIND_LABEL[r.kind] ?? `${r.kind} (sem texto salvo)`)) + (r.error ? ` — falhou: ${r.error}` : ""),
+    text: renderWaText((r.text ?? (KIND_LABEL[r.kind] ?? `mensagem antiga, tipo ${r.kind} (sem texto salvo)`)) + (r.error ? ` — falhou: ${r.error}` : "")),
   }));
 }
 

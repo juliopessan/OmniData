@@ -79,7 +79,16 @@ NOVA = Agent(
     ("me ajuda com um script pra essa reunião", "como quebro a objeção de preço?"),
 )
 
-TEAM: dict[str, Agent] = {a.key: a for a in (ORION, VEGA, ALTAIR, LYRA, AURORA, ARGUS, POLARIS, NOVA)}
+ATLAS = Agent(
+    "atlas", "Atlas", "Memória de Reuniões",
+    "Guarda o que foi dito nas reuniões e busca por assunto quando você pergunta — sempre um trecho real do que foi registrado, "
+    "nunca um resumo inventado.",
+    "Objetivo e literal. Traz a citação, não a interpretação.",
+    ("search_meeting_notes",),
+    ("o que ficou combinado com a Acme?", "o que o cliente falou sobre o preço na última reunião?"),
+)
+
+TEAM: dict[str, Agent] = {a.key: a for a in (ORION, VEGA, ALTAIR, LYRA, AURORA, ARGUS, POLARIS, NOVA, ATLAS)}
 SPECIALISTS: dict[str, Agent] = {k: a for k, a in TEAM.items() if a.tools}
 TOOL_OWNER: dict[str, str] = {t: a.key for a in SPECIALISTS.values() for t in a.tools}
 WRITE_TOOLS = frozenset({"add_note", "create_task", "propose_deal_update", "undo_last"})

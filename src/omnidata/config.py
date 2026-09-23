@@ -63,6 +63,9 @@ class Settings(BaseSettings):
     dataset_max_bytes: int = 10_000_000
     dataset_max_rows: int = 100_000
     webhook_max_bytes: int = 1_000_000  # WhatsApp payloads are small; a bigger body is rejected before the signature is checked
+    chroma_url: str = ""               # semantic index only, never the permission boundary (ADR 0009); e.g. http://chroma:8000
+    chroma_collection: str = "meeting_transcripts"
+    embeddings_model: str = "text-embedding-3-small"  # OpenAI; reuses OPENAI_API_KEY (already set for transcription)
 
     @property
     def direct_url(self) -> str:

@@ -78,6 +78,9 @@
 - {id: coach-01, tag: coach, text: "me ajuda com um script pra essa reunião", plan: [nova.get_playbook]}
 - {id: coach-02, tag: coach, text: "como quebro a objeção de preço?", plan: [nova.get_playbook]}
 - {id: coach-03, tag: coach, text: "me ajuda a montar a abordagem: o que costuma pesar mais pra esse tipo de cliente?", plan: [nova.get_playbook]}
+# ---------- memória de reuniões (Atlas) ----------
+- {id: atlas-01, tag: atlas, text: "o que ficou combinado na reunião com a Fast Shop?", plan: [atlas.search_meeting_notes]}
+- {id: atlas-02, tag: atlas, text: "o que o cliente falou sobre o preço na última call?", plan: [atlas.search_meeting_notes]}
 # ---------- equipe e preferências ----------
 - {id: eq-01, tag: equipe, text: "quem é a equipe?", kind: team}
 - {id: eq-02, tag: equipe, text: "quem são vocês?", kind: team}

@@ -13,3 +13,4 @@ data/
 *.local.csv
 *.local.xlsx
 web/public/samples/_*
+evolution-qrcode.png

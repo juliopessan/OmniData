@@ -20,7 +20,8 @@ def test_every_case_is_well_formed_and_its_ideal_plan_is_valid():
         assert len(cases) >= 16
         for c in cases:
             if c.kind == "plan":
-                raw = [{"agent": a, "tool": t, "args": {"query": "acme"} if t == "get_deal" else {"deal": "Acme", "text": "x", "title": "t", "field": "amount", "value": "1"}}
+                raw = [{"agent": a, "tool": t, "args": {"query": "acme"} if t in ("get_deal", "search_meeting_notes")
+                       else {"deal": "Acme", "text": "x", "title": "t", "field": "amount", "value": "1"}}
                        for a, t in c.plan]
                 assert c.plan and all(a in T.SPECIALISTS for a, _ in c.plan), c.id
                 assert len(c.plan) <= T.MAX_STEPS and [t for _, t in c.plan if t in T.WRITE_TOOLS].__len__() <= 1, c.id

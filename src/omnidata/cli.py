@@ -42,10 +42,12 @@ app.add_typer(insights_app, name="insights")
 eval_app = typer.Typer(no_args_is_help=True, help="Evaluations (no database needed)")
 forecast_app = typer.Typer(no_args_is_help=True, help="Statistical forecast of the open pipeline")
 evolution_app = typer.Typer(no_args_is_help=True, help="Evolution API: create/connect/inspect the WhatsApp instance (ADR 0008)")
+transcripts_app = typer.Typer(no_args_is_help=True, help="Meeting transcripts + Chroma index for Atlas (ADR 0009)")
 app.add_typer(hygiene_app, name="hygiene")
 app.add_typer(forecast_app, name="forecast")
 app.add_typer(eval_app, name="eval")
 app.add_typer(evolution_app, name="evolution")
+app.add_typer(transcripts_app, name="transcripts")
 
 
 def _evolution_admin() -> tuple[Settings, EvolutionAdminClient]:
@@ -414,6 +416,47 @@ def team_cmd(action: str = typer.Argument("list", help="list | export")) -> None
     typer.echo(TEAM_NAME)
     for a in TEAM.values():
         typer.echo(f"  {a.name:<7} {a.title:<24} tools: {', '.join(a.tools) or '— (planeja e coordena)'}")
+
+
+@transcripts_app.command("seed")
+def transcripts_seed(owner: str = typer.Option(..., help="HubSpot owner id"), n: int = typer.Option(5, help="how many deals to generate a transcript for")) -> None:
+    """Synthetic meeting transcripts (ADR 0009), tied to real deals this owner already has — inserts into Postgres, embeds, upserts to Chroma."""
+    from .db import connect
+    from .jobs.worker import build_embeddings, build_vector_store
+    from .transcripts.ingest import index_transcripts
+    from .transcripts.synth import synth_transcripts
+    s = get_settings()
+    emb, store = build_embeddings(s), build_vector_store(s)
+    if not emb or not store:
+        typer.echo("OPENAI_API_KEY and/or CHROMA_URL not set — nothing to embed/index.", err=True)
+        raise typer.Exit(2)
+    with connect() as conn:
+        rows = synth_transcripts(conn, owner, n)
+        indexed = index_transcripts(emb, store, rows)
+    typer.echo(f"{len(rows)} transcript(s) created, {indexed} indexed in Chroma.")
+
+
+@transcripts_app.command("search")
+def transcripts_search(query: str, owner: str = typer.Option(..., help="HubSpot owner id, for the permission check")) -> None:
+    """Manual test of the same lookup Atlas does on WhatsApp: Chroma finds candidates, Postgres decides what this owner may see."""
+    from .bot.repo import meeting_transcripts_by_ids
+    from .db import connect
+    from .jobs.worker import build_embeddings, build_vector_store
+    from .security.principal import Principal
+    s = get_settings()
+    emb, store = build_embeddings(s), build_vector_store(s)
+    if not emb or not store:
+        typer.echo("OPENAI_API_KEY and/or CHROMA_URL not set.", err=True)
+        raise typer.Exit(2)
+    vec = emb.embed([query])[0]
+    candidates = store.query(vec, limit=5)
+    p = Principal(user_id="cli", role="manager", hs_owner_id=owner, display_name=None, owner_ids=frozenset({owner}))
+    with connect() as conn:
+        rows = meeting_transcripts_by_ids(conn, p, [tid for tid, _ in candidates])
+    for r in rows:
+        typer.echo(f"- {r['deal_name']} ({r['occurred_at']}): {r['text'][:200]}")
+    if not rows:
+        typer.echo("no matches this owner may see")
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(message)s")
 
 

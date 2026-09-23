@@ -15,6 +15,7 @@ dependencies = [
   "apscheduler>=3.10,<4",
   "python-multipart>=0.0.9",
   "openpyxl>=3.1",
+  "chromadb>=1.0,<2.0",
 ]
 
 [project.optional-dependencies]
@@ -46,10 +47,13 @@ ignore = ["E501", "B008"]  # B008: typer idiom
 python_version = "3.12"
 ignore_missing_imports = true
 [[tool.mypy.overrides]]
+module = ["chromadb.*"]
+follow_imports = "skip"  # chromadb ships inline types; skip so mypy doesn't crawl its whole (large) source tree
+[[tool.mypy.overrides]]
 module = ["omnidata.crm.*", "omnidata.security.*"]
 strict = true
 [[tool.mypy.overrides]]
-module = ["omnidata.bot.*", "omnidata.alerts.*"]
+module = ["omnidata.bot.*", "omnidata.alerts.*", "omnidata.transcripts.*"]
 disable_error_code = ["index"]  # aggregate queries always return one row
 [tool.ruff.lint.per-file-ignores]
 "tests/*" = ["E702", "E701", "B006", "B017"]

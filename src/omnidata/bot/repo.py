@@ -159,3 +159,15 @@ def forecast(conn: Conn, p: Principal, period_start: date) -> dict[str, Any]:
     out = build([float(r["amount"] or 0) for r in rows if r["is_open"]], wins, losses, q["won_amount"], q["quota_amount"], has_created_at=has_created)
     out["period"] = q["period"]
     return out
+
+
+def meeting_transcripts_by_ids(conn: Conn, p: Principal, ids: list[str]) -> list[dict[str, Any]]:
+    """The permission boundary for Atlas (ADR 0009): Chroma only ever suggests candidate ids; this is what decides which of
+    them this Principal may actually see. Never trust a caller-supplied owner id (rule 7) — owner_clause() decides that."""
+    if not ids:
+        return []
+    clause, params = p.owner_clause()
+    with conn.cursor() as cur:
+        cur.execute(f"select id, hs_deal_id, deal_name, occurred_at, text from serving.v_meeting_transcript "
+                    f"where id = any(%s::uuid[]) and {clause}", [ids, *params])
+        return list(cur.fetchall())

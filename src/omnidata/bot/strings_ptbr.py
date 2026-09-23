@@ -272,6 +272,14 @@ def tpl_playbook(d: dict[str, Any]) -> str:
     return f"Pra abordagem: o que mais aparece pedido é {d_lines}. Frases que se repetem nas notas: {p_lines}. {CAUTION_OUTCOME}"
 
 
+def tpl_meetings(d: dict[str, Any]) -> str:
+    items = d.get("items", [])
+    if not items:
+        return "Não achei nada nas reuniões registradas sobre isso."
+    lines = " · ".join(f"*{x['deal_name']}* ({x['occurred_at']}): “{x['excerpt']}”" for x in items)
+    return f"O que encontrei nas reuniões: {lines}."
+
+
 def tpl_forecast(d: dict[str, Any]) -> str:
     if d.get("status") == "insufficient":
         return (f"Ainda não há base para prever: só {d['closed']} negócio(s) fechado(s) (o mínimo é {d['min_closed']}). "

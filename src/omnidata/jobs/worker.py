@@ -24,6 +24,8 @@ from ..llm.base import LlmClient
 from ..llm.fallback import FallbackLlmClient
 from ..llm.openai_chat import OpenAIChatClient
 from ..llm.transcribe import OpenAITranscriber, Transcriber
+from ..rag.chroma import ChromaStore, VectorStore
+from ..rag.embeddings import Embeddings, OpenAIEmbeddings
 
 log = logging.getLogger("omnidata.worker")
 
@@ -63,6 +65,18 @@ def build_transcriber(s: Settings) -> Transcriber | None:
     return OpenAITranscriber(s.openai_api_key, s.transcribe_model, s.transcribe_fallback_model, s.openai_base_url, s.transcribe_max_seconds)
 
 
+def build_embeddings(s: Settings) -> Embeddings | None:
+    if not s.openai_api_key:
+        return None  # Atlas then reports no meetings found, same degraded shape as any other missing dependency
+    return OpenAIEmbeddings(s.openai_api_key, s.embeddings_model, s.openai_base_url)
+
+
+def build_vector_store(s: Settings) -> VectorStore | None:
+    if not s.chroma_url:
+        return None
+    return ChromaStore(s.chroma_url, s.chroma_collection)
+
+
 async def _locked(key: int, fn):  # type: ignore[no-untyped-def]
     try:
         with connect(direct=True) as conn, advisory_lock(conn, key):
@@ -77,7 +91,8 @@ async def run(s: Settings | None = None) -> None:
     s = s or get_settings()
     gw = EvolutionGateway(s.evolution_api_url, s.evolution_api_key, s.evolution_instance)
     hs = HubSpotClient(s.hubspot_access_token, rps=s.hubspot_rps, search_rps=s.hubspot_search_rps) if s.hubspot_access_token else None
-    deps = Deps(gateway=gw, writer=HubSpotWriter(hs) if hs else None, llm=build_llm(s), settings=s, transcriber=build_transcriber(s))
+    deps = Deps(gateway=gw, writer=HubSpotWriter(hs) if hs else None, llm=build_llm(s), settings=s, transcriber=build_transcriber(s),
+                embeddings=build_embeddings(s), vector_store=build_vector_store(s))
 
     async def ingest_and_alert() -> None:
         async def job(conn):  # type: ignore[no-untyped-def]
