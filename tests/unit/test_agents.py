@@ -3,7 +3,7 @@ import json
 from pathlib import Path
 
 from omnidata.agents import team as T
-from omnidata.agents.orion import plan_schema, validate_plan
+from omnidata.agents.orion import ORION_SYSTEM, plan_schema, validate_plan
 
 
 def step(agent, tool, **args):
@@ -59,3 +59,16 @@ def test_plan_schema_is_closed_over_the_team():
 def test_web_team_json_is_in_sync_with_python():  # single source of truth for the UI
     web = json.loads((Path(__file__).parents[2] / "web/src/lib/team.json").read_text())
     assert web == json.loads(json.dumps(T.export())), "run: uv run omnidata team export > web/src/lib/team.json"
+
+
+def test_orion_prompt_spells_out_literal_values_for_every_enum_arg():
+    """Found in production: set_goal's goal_type was rejected twice because the planner LLM only ever saw the field
+    NAME, never which literal strings ("deals_won"/"quota_pct") were valid — the plan tool's own JSON schema leaves
+    `args` as a free object, so this text is the model's only source for that. Locks the fix for every enum tool."""
+    from omnidata.bot.tools import catalog
+    for tool, (model, _desc) in catalog.TOOLS.items():
+        sch = model.model_json_schema()
+        for name in sch.get("required", []):
+            values = sch["properties"].get(name, {}).get("enum")
+            if values:
+                assert f"{name}: {'|'.join(values)}" in ORION_SYSTEM, f"{tool}.{name}"

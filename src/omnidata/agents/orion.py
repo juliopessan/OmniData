@@ -10,9 +10,15 @@ from .team import MAX_STEPS, SPECIALISTS, TOOL_OWNER, WRITE_TOOLS, Agent
 
 
 def _tool_line(tool: str) -> str:
+    """Lists each required arg, and — for a Literal/enum field — the exact accepted values: the `plan` tool's own JSON
+    schema only constrains `agent`/`tool`, not `args` (kept a free object so one schema fits every tool), so this text
+    description is the model's only source for which literal strings are valid. Found the hard way: `set_goal`'s
+    `goal_type` was rejected twice in production because the model had no way to know "deals_won"/"quota_pct" verbatim."""
     model, desc = catalog.TOOLS[tool]
+    props = model.model_json_schema().get("properties", {})
     req = model.model_json_schema().get("required", [])
-    return f"  - {tool}({', '.join(req)}): {desc}" if req else f"  - {tool}: {desc}"
+    fields = [f"{name}: {'|'.join(props[name]['enum'])}" if "enum" in props.get(name, {}) else name for name in req]
+    return f"  - {tool}({', '.join(fields)}): {desc}" if fields else f"  - {tool}: {desc}"
 
 
 ORION_SYSTEM = (
