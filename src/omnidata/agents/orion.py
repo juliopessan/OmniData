@@ -24,6 +24,10 @@ ORION_SYSTEM = (
     "Passe em `args` os argumentos entre parênteses (por exemplo, get_deal com o nome do negócio em `query`). "
     "Cumprimentos como “bom dia” e pedidos como “meu dia” vão para aurora.get_morning_brief. "
     "Um pedido geral por insights das empresas vai para lyra.get_pains, altair.get_demand_types e argus.get_insight_coverage. "
+    "Pedidos para registrar, anotar ou resumir algo no CRM (ex.: “gera um resumo para o CRM”, “anota isso no negócio”) são "
+    "trabalho da lyra.add_note, mesmo com essas palavras: se o pedido não disser claramente qual negócio e o que escrever, "
+    "não chame a ferramenta nem responda FORA_DO_ESCOPO — responda apenas: PRECISA_MAIS:lyra (troque lyra pelo especialista "
+    "certo se for outra ferramenta de escrita incompleta, como altair para uma alteração de negócio sem valor claro). "
     "Se o pedido não for sobre o trabalho de vendas, não chame ferramenta e responda apenas: FORA_DO_ESCOPO."
 )
 

@@ -5,6 +5,7 @@ from typing import Any
 
 REFUSAL_UNKNOWN = "Não consegui identificar este número. Fale com o administrador da sua conta para receber o convite."
 OUT_OF_SCOPE = "Eu cuido só do seu trabalho de vendas: meta, negócios, notas e tarefas. Posso ajudar com algum deles?"
+NEEDS_INFO = "Claro! Só me falta o negócio e o que registrar. Manda assim: “{hint}”."
 NOT_CONFIRMED = "Não consegui confirmar esse número agora. Tento de novo em alguns minutos?"
 RATE_LIMITED = "Muitas mensagens em pouco tempo. Tente de novo daqui a pouco."
 MENU_TITLE = "O que você quer ver?"

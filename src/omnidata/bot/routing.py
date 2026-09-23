@@ -18,6 +18,7 @@ INSIGHTS_Q = re.compile(r"\b(insights?|panorama das empresas|radar das empresas)
 OVERVIEW_PLAN: list[dict[str, Any]] = [{"agent": "lyra", "tool": "get_pains", "args": {}}, {"agent": "altair", "tool": "get_demand_types", "args": {}},
                  {"agent": "argus", "tool": "get_insight_coverage", "args": {}}]
 _INTROS = ("quem é você", "quem e voce", "oi", "olá", "ola")
+_NEEDS_INFO = re.compile(r"^\s*PRECISA_MAIS:\s*(\w+)", re.IGNORECASE)
 
 
 @dataclass(frozen=True)
@@ -57,7 +58,8 @@ def keyword_decision(text: str, forced: T.Agent | None) -> Decision:
 
 
 def interpret_llm(res: RouterResult, forced: T.Agent | None) -> tuple[list[Step] | None, str]:
-    """What the planner LLM's answer means. status: plan | rejected (invalid plan, never executed) | oos | none (fall back to keywords)."""
+    """What the planner LLM's answer means. status: plan | rejected (invalid plan, never executed) | oos |
+    needs_info:<agent> (in scope, but missing details to call a write tool) | none (fall back to keywords)."""
     if res.tool and res.tool.name == "plan":
         steps = validate_plan(res.tool.arguments.get("steps"), forced)
         return (steps, "plan") if steps else (None, "rejected")
@@ -66,4 +68,9 @@ def interpret_llm(res: RouterResult, forced: T.Agent | None) -> tuple[list[Step]
         return (steps, "plan") if steps else (None, "rejected")
     if res.text and "FORA_DO_ESCOPO" in res.text:
         return None, "oos"
+    if res.text:
+        m = _NEEDS_INFO.match(res.text)
+        agent = m.group(1).lower() if m else None
+        if agent and agent in T.SPECIALISTS and (forced is None or forced.key == agent):
+            return None, f"needs_info:{agent}"
     return None, "none"

@@ -329,6 +329,9 @@ async def _orion(conn: Conn, deps: Deps, p: Principal, text: str) -> Reply:
                 _log_step(conn, p, "orion", "plan", "rejected", 0)  # invalid plan: never executed
             elif status == "oos":
                 return _sign(T.ORION, Reply(S.OUT_OF_SCOPE))
+            elif status.startswith("needs_info:"):
+                agent = T.TEAM[status.split(":", 1)[1]]
+                return _sign(agent, Reply(S.NEEDS_INFO.format(hint=agent.examples[0])))
         except LlmError:
             audit(conn, p.user_id, "llm_down", {})
             conn.commit()
