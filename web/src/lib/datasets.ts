@@ -1,6 +1,9 @@
+import { API_URL } from "./api";
 import spec from "./dataset-spec.json";
 import type { Deal } from "./seed";
 import type { Rec } from "./insights";
+
+export { API_URL };
 
 export interface ColumnSpec { name: string; required: boolean; stored: boolean; hint: string; aliases: string[] }
 export interface KindSpec { key: string; title: string; description: string; columns: ColumnSpec[] }
@@ -56,9 +59,6 @@ export interface Report {
 }
 export interface ServerResult { status: string; upload_id: string | null; imported: Record<string, number>; report: Report }
 export interface UploadRow { id: string; kind: string; filename: string; status: string; total_rows: number; imported_rows: number; error_count: number; created_at: string }
-
-export const API_URL = (process.env.NEXT_PUBLIC_API_URL ?? "").replace(/\/$/, "");
-
 
 // ───────── Modo navegador (sem API): negócios do CSV -> painel ─────────
 // Regras espelham src/omnidata/datasets/{coerce,validate}.py (padrões de ganho/perdido e ordem de etapas vêm do mesmo spec).

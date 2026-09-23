@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends, File, Form, Header, HTTPException, Request, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import JSONResponse, Response
 
 from ..config import get_settings
@@ -11,17 +11,9 @@ from ..datasets.importer import ImportOptions, import_file
 from ..datasets.parse import UploadError
 from ..datasets.spec import KINDS, spec_json
 from ..datasets.templates import template_bytes
-from .guard import admin_check
+from .guard import require_admin
 
 router = APIRouter(prefix="/api/datasets", tags=["datasets"])
-
-
-def require_admin(authorization: Annotated[str | None, Header()] = None) -> str:
-    """Second layer: BodyGuardMiddleware already rejects bad tokens before the body is read; this also covers GET routes."""
-    bad = admin_check(authorization)
-    if bad:
-        raise HTTPException(bad[0], bad[1], headers={"WWW-Authenticate": "Bearer"} if bad[0] == 401 else None)
-    return "api"
 
 
 def _kind(kind: str) -> str:

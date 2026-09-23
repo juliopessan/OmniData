@@ -96,7 +96,7 @@ async def send(conn: Conn, deps: Deps, to: str, user_id: str | None, reply: Repl
         kind = "text"
     with conn.cursor() as cur:
         cur.execute("insert into app.wa_message (user_id, direction, kind, payload, status, processed_at) values (%s,'out',%s,%s,'done',now())",
-                    (user_id, kind, Jsonb({"len": len(reply.text)})))  # never store bodies for outbound either
+                    (user_id, kind, Jsonb({"text": reply.text})))  # same shape as inbound (webhook.persist_inbound), for the sales cockpit
     conn.commit()
 
 

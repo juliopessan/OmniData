@@ -13,6 +13,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from ..bot.webhook import router as webhook_router
 from ..config import get_settings
 from ..db import connect
+from .cockpit import router as cockpit_router
 from .datasets import router as datasets_router
 from .guard import BodyGuardMiddleware
 
@@ -28,6 +29,7 @@ def create_app(connect_fn: Callable[[], psycopg.Connection[Any]] | None = None) 
         app.add_middleware(CORSMiddleware, allow_origins=origins, allow_methods=["GET", "POST"], allow_headers=["authorization", "content-type"])
     app.include_router(webhook_router)
     app.include_router(datasets_router)
+    app.include_router(cockpit_router)
 
     @app.get("/healthz")
     async def healthz() -> dict[str, str]:

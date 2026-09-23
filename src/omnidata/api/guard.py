@@ -5,7 +5,9 @@ from __future__ import annotations
 
 import hmac
 import json
+from typing import Annotated
 
+from fastapi import Header, HTTPException
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from ..config import get_settings
@@ -23,6 +25,15 @@ def admin_check(authorization: str | None) -> tuple[int, str] | None:
     if not supplied or not hmac.compare_digest(supplied.encode(), token.encode()):
         return 401, "invalid token"
     return None
+
+
+def require_admin(authorization: Annotated[str | None, Header()] = None) -> str:
+    """FastAPI dependency, shared by every admin-only router: BodyGuardMiddleware already rejects bad tokens on POST
+    routes before the body is read; this also covers GET routes, which the middleware never touches."""
+    bad = admin_check(authorization)
+    if bad:
+        raise HTTPException(bad[0], bad[1], headers={"WWW-Authenticate": "Bearer"} if bad[0] == 401 else None)
+    return "api"
 
 
 async def _reply(send: Send, status: int, detail: str) -> None:
