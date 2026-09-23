@@ -64,7 +64,7 @@ async def test_onboarding_aceito_activates_and_records_consent(world):  # FR-BOT
     out = await say(conn, d, "+5511977770000", "oi")
     assert "Aceito" in out["body"]
     out = await say(conn, d, "+5511977770000", "Aceito")
-    assert "Tudo certo" in out["body"]
+    assert "Orion" in out["body"] and "Nova" in out["body"]
     with conn.cursor() as cur:
         cur.execute("select status, consent_text_version, opted_in_at from app.app_user where phone_e164=%s", ("+5511977770000",))
         r = cur.fetchone()

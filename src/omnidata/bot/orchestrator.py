@@ -209,7 +209,7 @@ async def _onboarding_or_refuse(conn: Conn, deps: Deps, phone: str, body: dict[s
             conn.commit()
             audit(conn, str(u["id"]), "opt_in", {"consent_text_version": CONSENT_VERSION})
             conn.commit()
-            await send(conn, deps, phone, str(u["id"]), Reply(S.ONBOARDING_OK.format(name=u["display_name"] or "")))
+            await send(conn, deps, phone, str(u["id"]), _sign(T.ORION, Reply(S.ONBOARDING_OK.format(name=u["display_name"] or ""))))
             return
         conn.commit()
     await send(conn, deps, phone, str(u["id"]) if u else None, Reply(S.ONBOARDING_ASK if u else S.REFUSAL_UNKNOWN))
