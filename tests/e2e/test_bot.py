@@ -441,6 +441,12 @@ def test_webhook_secret_dedupe_ignores_own_messages_and_persists(conn, monkeypat
     with conn.cursor() as cur:
         cur.execute("select count(*) n from app.wa_message where wa_message_id='EVT.OUT'")
         assert cur.fetchone()["n"] == 0
+    # Real bug: the bot was replying in every WhatsApp group the connected number belongs to
+    group = json.dumps(_upsert("EVT.GROUP", jid="120363012345678901@g.us")).encode()
+    assert client.post("/webhooks/evolution", content=group, headers=ok).status_code == 200
+    with conn.cursor() as cur:
+        cur.execute("select count(*) n from app.wa_message where wa_message_id='EVT.GROUP'")
+        assert cur.fetchone()["n"] == 0  # never stored, so process_next can never reply into the group
     assert client.get("/healthz").json() == {"status": "ok"}
     get_settings.cache_clear()
 

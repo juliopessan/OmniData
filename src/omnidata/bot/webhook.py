@@ -57,13 +57,16 @@ def persist_inbound(conn: psycopg.Connection[Any], payload: dict[str, Any]) -> i
     n = 0
     for d in extract_events(payload):
         key = d.get("key") or {}
-        if key.get("fromMe") or not key.get("id") or not key.get("remoteJid"):
+        jid = key.get("remoteJid")
+        if key.get("fromMe") or not key.get("id") or not jid:
             continue
+        if str(jid).endswith("@g.us"):  # a group, never a seller DM — found live: the bot was replying in every group
+            continue                    # the connected number belongs to, since nothing here ever checked this before
         parsed = message_kind(d)
         if parsed is None:
             continue
         kind, body = parsed
-        body["from"] = normalize_phone(str(key["remoteJid"]))
+        body["from"] = normalize_phone(str(jid))
         with conn.cursor() as cur:
             cur.execute("select id from app.app_user where phone_e164 = %s", (body["from"],))
             u = cur.fetchone()
