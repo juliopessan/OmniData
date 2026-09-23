@@ -12,6 +12,14 @@ from omnidata.llm.transcribe import TranscribeError, Transcript
 class FakeGateway:
     def __init__(self) -> None:
         self.sent: list[dict[str, Any]] = []
+        self.reacted: list[tuple[str, str, str]] = []
+        self.presence: list[tuple[str, bool]] = []
+
+    async def send_presence(self, to: str, composing: bool) -> None:
+        self.presence.append((to, composing))
+
+    async def react(self, to: str, message_id: str, emoji: str) -> None:
+        self.reacted.append((to, message_id, emoji))
 
     async def send_text(self, to: str, body: str) -> str:
         self.sent.append({"to": to, "type": "text", "body": body}); return "wamid.1"
@@ -70,6 +78,7 @@ class FakeLlm:
     def __init__(self, tool: ToolCall | None = None, narration: str | None = None, down: bool = False) -> None:
         self.tool, self.narration, self.down = tool, narration, down
         self.router_inputs: list[str] = []
+        self.narrator_systems: list[str] = []
 
     async def route(self, system: str, user_text: str, tools: list[dict[str, Any]]) -> RouterResult:
         self.router_inputs.append(user_text)
@@ -78,6 +87,7 @@ class FakeLlm:
         return RouterResult(self.tool, None, Usage("fake", "fake", 10, 5))
 
     async def narrate(self, system: str, payload_json: str) -> tuple[str, Usage]:
+        self.narrator_systems.append(system)
         if self.down:
             raise LlmError("down")
         return self.narration or "", Usage("fake", "fake", 10, 5)

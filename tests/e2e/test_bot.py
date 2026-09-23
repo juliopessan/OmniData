@@ -116,6 +116,38 @@ async def _p(conn, phone):
     return resolve_by_phone(conn, phone)
 
 
+async def test_bare_thanks_gets_a_reaction_not_a_reply(world):  # humanized flow: "valeu" shouldn't hit the menu fallback
+    conn, gw, w, s, _ = world
+    inbound(conn, "wamid.thanks", REP_A, "text", text="valeu!")
+    assert await process_next(conn, deps(gw, w, s))
+    assert gw.reacted == [(REP_A, "wamid.thanks", "👍")]
+    assert gw.sent == []
+
+
+async def test_typing_delay_is_off_by_default(world):
+    conn, gw, w, s, _ = world
+    llm = FakeLlm(tool=ToolCall("get_quota_status", {}), narration="Você está em 50% da meta.")
+    await say(conn, deps(gw, w, s, llm), REP_A, "meta?")
+    assert gw.presence == []  # no TYPING_DELAY_MAX_SECONDS configured: today's behavior is unchanged
+
+
+async def test_typing_delay_sends_presence_before_the_reply(world):
+    conn, gw, w, _, _ = world
+    s = Settings(rate_limit_msgs_per_hour=1000, typing_delay_max_seconds=0.01)
+    llm = FakeLlm(tool=ToolCall("get_quota_status", {}), narration="Você está em 50% da meta.")
+    await say(conn, deps(gw, w, s, llm), REP_A, "meta?")
+    assert gw.presence == [(REP_A, True)]
+    assert gw.sent  # the real reply still goes out after the (tiny, test-only) pause
+
+
+async def test_negative_sentiment_shapes_the_narrator_tone_not_the_numbers(world):
+    conn, gw, w, s, _ = world
+    llm = FakeLlm(tool=ToolCall("get_quota_status", {}), narration="Você está em 50% da meta.")
+    await say(conn, deps(gw, w, s, llm), REP_A, "isso não está funcionando, péssimo")
+    assert "frustrado" in llm.narrator_systems[-1]
+    assert "frustrado" not in gw.last["body"]  # tone hint only ever shapes the persona prompt, never leaks into the reply
+
+
 async def test_router_input_is_pii_masked(world):
     conn, gw, w, s, _ = world
     llm = FakeLlm(tool=ToolCall("get_pipeline_summary", {}))

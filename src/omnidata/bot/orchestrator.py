@@ -2,6 +2,7 @@
 Claim -> Principal -> rate limit -> normalize -> (button: deterministic | text: router) -> tool -> narrate -> number guard -> send."""
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import uuid
@@ -26,6 +27,7 @@ from ..rag.embeddings import Embeddings
 from ..security.pii_masking import mask_pii
 from ..security.principal import Principal, resolve_by_phone
 from . import actions, repo
+from . import sentiment as sent
 from . import strings_ptbr as S
 from .actions import Reply, audit
 from .gateway import GatewayError, MessagingGateway
@@ -89,6 +91,10 @@ async def process_next(conn: Conn, deps: Deps) -> bool:
 
 # ---------------- sending -----------------
 async def send(conn: Conn, deps: Deps, to: str, user_id: str | None, reply: Reply) -> None:
+    max_delay = deps.settings.typing_delay_max_seconds
+    if max_delay > 0:  # off by default (config.py); a "digitando..." pause before the reply lands
+        await deps.gateway.send_presence(to, True)
+        await asyncio.sleep(min(0.4 + len(reply.text) * 0.01, max_delay))
     if reply.list_rows:
         await deps.gateway.send_list(to, reply.text, reply.list_button, reply.list_rows)
         kind = "list"
@@ -154,6 +160,10 @@ async def handle(conn: Conn, deps: Deps, msg: dict[str, Any]) -> None:
         return
 
     kind = msg["kind"]
+    if kind == "text" and sent.classify(body.get("text", "")).acknowledgement:
+        # a bare "valeu"/"obrigado" doesn't need a reply — a reaction reads as human, a menu fallback reads as a bot
+        await deps.gateway.react(phone, str(msg.get("wa_message_id") or ""), "👍")
+        return
     if kind == "interactive":
         reply = await _handle_reply_id(conn, deps, p, body["reply_id"])
     elif kind in ("text", "audio"):
@@ -413,12 +423,12 @@ async def _run_tool_raw(conn: Conn, deps: Deps, p: Principal, tool: str | None, 
     a = parsed.model_dump()
     if tool == "search_meeting_notes":
         data, template = _search_meetings(conn, deps, p, a)
-        return Reply(await _narrate(conn, deps, p, data, template, T.agent_for_tool(tool)))
+        return Reply(await _narrate(conn, deps, p, data, template, T.agent_for_tool(tool), original_text))
     if tool in catalog.READ_TOOLS:
         data, template = _read(conn, p, tool, a, today)
         if data is None:
             return Reply(S.NO_MATCH_DEAL.format(q=a.get("query", "")))
-        return Reply(await _narrate(conn, deps, p, data, template, T.agent_for_tool(tool)))
+        return Reply(await _narrate(conn, deps, p, data, template, T.agent_for_tool(tool), original_text))
     if not deps.writer:
         return Reply(S.HUBSPOT_DOWN)
     if tool == "undo_last":
@@ -520,14 +530,22 @@ def _search_meetings(conn: Conn, deps: Deps, p: Principal, a: dict[str, Any]) ->
 
 
 
-async def _narrate(conn: Conn, deps: Deps, p: Principal, data: dict[str, Any], template: Any, agent: T.Agent | None = None) -> str:
-    """Narrator LLM sees tool JSON only; number guard decides whether its text may be sent (§11.3)."""
+async def _narrate(conn: Conn, deps: Deps, p: Principal, data: dict[str, Any], template: Any, agent: T.Agent | None = None,
+                   original_text: str = "") -> str:
+    """Narrator LLM sees tool JSON only; number guard decides whether its text may be sent (§11.3). `original_text` only
+    ever shapes TONE (persona hint below) — it never becomes a fact the model can report, so numbers_ok's guarantee holds."""
     fallback: str = template(data)
     if not deps.llm or _over_budget(conn, p, deps.settings):
         return fallback
     payload = json.dumps(data, default=str, ensure_ascii=False)
     try:
         persona = f" Você é {agent.name}, {agent.title}. {agent.persona}" if agent else ""
+        if original_text:
+            s = sent.classify(original_text)
+            if s.negative:
+                persona += " O vendedor parece frustrado agora: seja direto, reconheça o problema numa frase curta antes dos números, sem enrolar."
+            elif s.urgent:
+                persona += " O vendedor está com pressa: vá direto ao ponto, sem introdução."
         text, usage = await deps.llm.narrate(prompts.NARRATOR_SYSTEM + persona, payload)
         _log_llm(conn, p.user_id, "narrator", usage)
     except LlmError:

@@ -162,5 +162,22 @@ class EvolutionGateway:
         import base64
         return base64.b64decode(b64), str(mime)
 
+    async def send_presence(self, to: str, composing: bool) -> None:
+        """Best-effort (never raises, ADR 0008 addendum): unverified endpoint shape — a real smoke test is still needed,
+        same discipline as OPEN-8 above, but a bad guess here must never block the real reply from going out."""
+        try:
+            await self._post("/chat/sendPresence", {"number": to.lstrip("+"), "presence": "composing" if composing else "paused"})
+        except GatewayError:
+            pass
+
+    async def react(self, to: str, message_id: str, emoji: str) -> None:
+        """Best-effort, same reasoning as send_presence. remoteJid is rebuilt as <number>@s.whatsapp.net — the inverse
+        of webhook.py::normalize_phone — since Evolution's reaction endpoint needs the full key, not just the number."""
+        try:
+            await self._post("/message/sendReaction", {"key": {"remoteJid": f"{to.lstrip('+')}@s.whatsapp.net", "id": message_id, "fromMe": False},
+                                                        "reaction": emoji})
+        except GatewayError:
+            pass
+
     async def aclose(self) -> None:
         await self._http.aclose()
