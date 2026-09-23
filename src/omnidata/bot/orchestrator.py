@@ -90,12 +90,25 @@ async def process_next(conn: Conn, deps: Deps) -> bool:
 
 
 # ---------------- sending -----------------
+# "digitando..." → pausa → "digitando..." again, like a person actually composing a reply, not one static indicator
+# held for a fixed length. Runs up to typing_delay_max_seconds, stopping early if the budget is smaller.
+_TYPING_PATTERN: tuple[tuple[bool, float], ...] = ((True, 2.0), (False, 3.0), (True, 2.0))
+
+
+async def _typing_pulses(gateway: MessagingGateway, to: str, budget: float) -> None:
+    elapsed = 0.0
+    for composing, seconds in _TYPING_PATTERN:
+        if elapsed >= budget:
+            return
+        seconds = min(seconds, budget - elapsed)
+        await gateway.send_presence(to, composing, delay_ms=int(seconds * 1000))
+        await asyncio.sleep(seconds)
+        elapsed += seconds
+
+
 async def send(conn: Conn, deps: Deps, to: str, user_id: str | None, reply: Reply) -> None:
-    max_delay = deps.settings.typing_delay_max_seconds
-    if max_delay > 0:  # off by default (config.py); a "digitando..." pause before the reply lands
-        delay = min(0.4 + len(reply.text) * 0.01, max_delay)
-        await deps.gateway.send_presence(to, True, delay_ms=int(delay * 1000))
-        await asyncio.sleep(delay)
+    if deps.settings.typing_delay_max_seconds > 0:  # off by default (config.py)
+        await _typing_pulses(deps.gateway, to, deps.settings.typing_delay_max_seconds)
     if reply.list_rows:
         await deps.gateway.send_list(to, reply.text, reply.list_button, reply.list_rows)
         kind = "list"

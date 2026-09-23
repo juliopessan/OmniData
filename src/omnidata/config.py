@@ -66,7 +66,7 @@ class Settings(BaseSettings):
     chroma_url: str = ""               # semantic index only, never the permission boundary (ADR 0009); e.g. http://chroma:8000
     chroma_collection: str = "meeting_transcripts"
     embeddings_model: str = "text-embedding-3-small"  # OpenAI; reuses OPENAI_API_KEY (already set for transcription)
-    typing_delay_max_seconds: float = 0.0  # 0 = disabled (tests + default); a "digitando..." indicator before replying
+    typing_delay_max_seconds: float = 0.0  # 0 = disabled (tests + default); budget for the "digitando..." pulses (bot/orchestrator.py::_typing_pulses) before replying
 
     @property
     def direct_url(self) -> str:
