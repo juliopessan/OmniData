@@ -10,6 +10,7 @@ from fastapi.testclient import TestClient
 from omnidata.alerts import engine
 from omnidata.api.app import create_app
 from omnidata.bot import actions
+from omnidata.bot import strings_ptbr as S
 from omnidata.bot.orchestrator import Deps, process_next
 from omnidata.config import Settings
 from omnidata.ingest.seed import seed
@@ -114,6 +115,22 @@ async def test_faithful_narration_is_sent(world):
 
 async def _p(conn, phone):
     return resolve_by_phone(conn, phone)
+
+
+async def test_llm_false_negative_oos_gets_a_second_opinion_from_keywords(world):
+    # real bug found in production: "gera o script a partir disso" (a context-dependent follow-up the stateless
+    # router can't resolve) made the LLM say FORA_DO_ESCOPO even though "script" is a clear nova.get_playbook match
+    conn, gw, w, s, _ = world
+    llm = FakeLlm(tool=None, router_text="FORA_DO_ESCOPO", narration="Prepare uma resposta para a objeção de preço.")
+    out = await say(conn, deps(gw, w, s, llm), REP_A, "gera o script a partir disso")
+    assert out["body"].startswith("*Nova*:")
+
+
+async def test_llm_oos_still_wins_when_keywords_also_find_nothing(world):
+    conn, gw, w, s, _ = world
+    llm = FakeLlm(tool=None, router_text="FORA_DO_ESCOPO")
+    out = await say(conn, deps(gw, w, s, llm), REP_A, "qual a previsão do tempo em São Paulo?")
+    assert out["body"] == f"*Orion*: {S.OUT_OF_SCOPE}"
 
 
 async def test_bare_thanks_gets_a_reaction_not_a_reply(world):  # humanized flow: "valeu" shouldn't hit the menu fallback

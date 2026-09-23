@@ -336,6 +336,7 @@ async def _orion(conn: Conn, deps: Deps, p: Principal, text: str) -> Reply:
         return _sign(T.ORION, Reply(S.tpl_team([(a.name, a.title, a.tagline) for a in T.TEAM.values()])))
 
     steps: list[Step] | None = None
+    llm_said_oos = False
     if deps.llm and not _over_budget(conn, p, deps.settings):
         try:
             res = await deps.llm.route(ORION_SYSTEM, mask_pii(text), [plan_schema()])
@@ -344,7 +345,8 @@ async def _orion(conn: Conn, deps: Deps, p: Principal, text: str) -> Reply:
             if status == "rejected":
                 _log_step(conn, p, "orion", "plan", "rejected", 0)  # invalid plan: never executed
             elif status == "oos":
-                return _sign(T.ORION, Reply(S.OUT_OF_SCOPE))
+                _log_step(conn, p, "orion", "plan", "rejected", 0)  # agent_step has no 'oos' status; closest existing one
+                llm_said_oos = True  # not final yet: the keyword net below gets a say too, same as "rejected"
             elif status.startswith("needs_info:"):
                 agent = T.TEAM[status.split(":", 1)[1]]
                 return _sign(agent, Reply(S.NEEDS_INFO.format(hint=agent.examples[0])))
@@ -354,7 +356,10 @@ async def _orion(conn: Conn, deps: Deps, p: Principal, text: str) -> Reply:
     if steps is None:
         d = keyword_decision(text, forced)  # degraded mode (FR-BOT-7): one specialist, no LLM
         if d.kind == "menu":
-            return _menu()
+            # the LLM's "out of scope" call only sticks if the deterministic net also finds nothing — an LLM
+            # false-negative (e.g. a context-dependent follow-up like "gera o script a partir disso") must not
+            # override a clear keyword match the way it would have for any other message
+            return _sign(T.ORION, Reply(S.OUT_OF_SCOPE)) if llm_said_oos else _menu()
         if d.kind == "not_mine" and forced and d.other:
             owner = T.TEAM[d.other]
             return _sign(forced, Reply(S.NOT_MINE.format(other=owner.name, title=owner.title, hint=owner.examples[0].split(", ")[-1].strip("“”\""))))

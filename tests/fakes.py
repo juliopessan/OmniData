@@ -75,8 +75,8 @@ class FakeWriter:
 
 
 class FakeLlm:
-    def __init__(self, tool: ToolCall | None = None, narration: str | None = None, down: bool = False) -> None:
-        self.tool, self.narration, self.down = tool, narration, down
+    def __init__(self, tool: ToolCall | None = None, narration: str | None = None, down: bool = False, router_text: str | None = None) -> None:
+        self.tool, self.narration, self.down, self.router_text = tool, narration, down, router_text
         self.router_inputs: list[str] = []
         self.narrator_systems: list[str] = []
 
@@ -84,7 +84,7 @@ class FakeLlm:
         self.router_inputs.append(user_text)
         if self.down:
             raise LlmError("down")
-        return RouterResult(self.tool, None, Usage("fake", "fake", 10, 5))
+        return RouterResult(self.tool, self.router_text, Usage("fake", "fake", 10, 5))
 
     async def narrate(self, system: str, payload_json: str) -> tuple[str, Usage]:
         self.narrator_systems.append(system)
