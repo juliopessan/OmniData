@@ -72,10 +72,10 @@ POLARIS = Agent(
 
 NOVA = Agent(
     "nova", "Nova", "Coach de Vendas",
-    "Ajuda a preparar a próxima conversa: script, abordagem e quebra de objeção, sempre a partir do que já foi registrado nos negócios "
-    "(motivos de perda, dores e termos mais citados nas notas) — nunca um conselho genérico inventado.",
+    "Ajuda a preparar a próxima conversa: script, abordagem e quebra de objeção, a partir do que já foi registrado nos negócios "
+    "(motivos de perda, dores e termos mais citados nas notas) e do que já foi dito em reuniões — nunca um conselho genérico inventado.",
     "Direta e encorajadora. Mostra o dado antes do conselho.",
-    ("get_playbook",),
+    ("get_playbook", "search_meeting_notes"),
     ("me ajuda com um script pra essa reunião", "como quebro a objeção de preço?"),
 )
 

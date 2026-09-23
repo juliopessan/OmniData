@@ -399,7 +399,7 @@ async def run_plan(conn: Conn, deps: Deps, p: Principal, steps: list[Step], orig
     for i, st in enumerate(steps):
         t0 = time.monotonic()
         try:
-            r = await _run_tool(conn, deps, p, st.tool, st.args, original_text)
+            r = await _run_tool(conn, deps, p, st.tool, st.args, original_text, st.agent)
             status = "ok"
         except Exception:
             conn.rollback()
@@ -427,9 +427,15 @@ async def _free_text_confirmation(conn: Conn, deps: Deps, p: Principal, confirm:
     return actions.cancel(conn, p, str(r["id"]))
 
 
-async def _run_tool(conn: Conn, deps: Deps, p: Principal, tool: str | None, args: dict[str, Any], original_text: str = "") -> Reply:
+async def _run_tool(conn: Conn, deps: Deps, p: Principal, tool: str | None, args: dict[str, Any], original_text: str = "",
+                    agent_key: str | None = None) -> Reply:
+    """Signs with the specialist Orion actually planned (agent_key) when given — needed now that a tool can have more
+    than one legal owner (search_meeting_notes: both nova and atlas). Falls back to the tool's sole/default owner
+    for callers that never had a Step to begin with (e.g. the confirmation-flow write at line ~262)."""
     reply = await _run_tool_raw(conn, deps, p, tool, args, original_text)
-    return _sign(T.agent_for_tool(tool), reply) if tool and reply.text else reply
+    if not tool or not reply.text:
+        return reply
+    return _sign(T.TEAM[agent_key] if agent_key else T.agent_for_tool(tool), reply)
 
 
 async def _run_tool_raw(conn: Conn, deps: Deps, p: Principal, tool: str | None, args: dict[str, Any], original_text: str = "") -> Reply:

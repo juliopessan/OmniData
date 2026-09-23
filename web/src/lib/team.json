@@ -119,10 +119,11 @@
       "key": "nova",
       "name": "Nova",
       "title": "Coach de Vendas",
-      "tagline": "Ajuda a preparar a próxima conversa: script, abordagem e quebra de objeção, sempre a partir do que já foi registrado nos negócios (motivos de perda, dores e termos mais citados nas notas) — nunca um conselho genérico inventado.",
+      "tagline": "Ajuda a preparar a próxima conversa: script, abordagem e quebra de objeção, a partir do que já foi registrado nos negócios (motivos de perda, dores e termos mais citados nas notas) e do que já foi dito em reuniões — nunca um conselho genérico inventado.",
       "persona": "Direta e encorajadora. Mostra o dado antes do conselho.",
       "tools": [
-        "get_playbook"
+        "get_playbook",
+        "search_meeting_notes"
       ],
       "examples": [
         "me ajuda com um script pra essa reunião",

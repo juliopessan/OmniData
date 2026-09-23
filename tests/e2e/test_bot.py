@@ -18,7 +18,7 @@ from omnidata.llm.base import ToolCall
 from omnidata.security.principal import resolve_by_phone
 
 from ..conftest import TEST_DSN
-from ..fakes import FakeGateway, FakeLlm, FakeWriter
+from ..fakes import FakeEmbeddings, FakeGateway, FakeLlm, FakeVectorStore, FakeWriter
 from ..helpers import add_user, inbound
 
 REP_A, REP_B, MGR = "+5511900000001", "+5511900000002", "+5511900000009"
@@ -131,6 +131,22 @@ async def test_llm_oos_still_wins_when_keywords_also_find_nothing(world):
     llm = FakeLlm(tool=None, router_text="FORA_DO_ESCOPO")
     out = await say(conn, deps(gw, w, s, llm), REP_A, "qual a previsão do tempo em São Paulo?")
     assert out["body"] == f"*Orion*: {S.OUT_OF_SCOPE}"
+
+
+async def test_nova_can_also_search_meeting_notes_and_gets_signed_correctly(world):
+    # search_meeting_notes now has two legal owners (nova, atlas) — the reply must credit whichever Orion actually
+    # planned, not always default to atlas (a real gap: _run_tool used to derive the signer from a global 1:1 map)
+    conn, gw, w, s, ids = world
+    with conn.cursor() as cur:
+        cur.execute("insert into app.meeting_transcript (id, hs_deal_id, hs_owner_id, deal_name, occurred_at, text) "
+                    "values ('11111111-1111-1111-1111-111111111111', 'D1', '9000', 'Acme', now(), 'cliente reclamou do preço')")
+    conn.commit()
+    store = FakeVectorStore()
+    store.upsert(["11111111-1111-1111-1111-111111111111"], [[1.0, 0.0, 0.0, 0.0]], [{"hs_owner_id": "9000"}])
+    llm = FakeLlm(tool=ToolCall("plan", {"steps": [{"agent": "nova", "tool": "search_meeting_notes", "args": {"query": "preço"}}]}))
+    deps_ = Deps(gateway=gw, writer=w, llm=llm, settings=s, embeddings=FakeEmbeddings(), vector_store=store)
+    out = await say(conn, deps_, REP_A, "o que foi dito sobre preço nas reuniões?")
+    assert out["body"].startswith("*Nova*:")
 
 
 async def test_bare_thanks_gets_a_reaction_not_a_reply(world):  # humanized flow: "valeu" shouldn't hit the menu fallback
