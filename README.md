@@ -141,7 +141,9 @@ uv run omnidata serve worker       # noutro terminal: fila de mensagens, ingest�
 make check                         # ruff + mypy + pytest
 ```
 
-**Sem chaves de LLM** (`ANTHROPIC_API_KEY` ou `OPENAI_API_KEY`), o bot funciona em modo degradado por palavras-chave e menu. Com chave, o Orion planeja com o modelo. Defina `LLM_PROVIDER=anthropic|openai` no `.env`. Não há Azure no projeto.
+**Sem chaves de LLM** (`ANTHROPIC_API_KEY` ou `OPENAI_API_KEY`), o bot funciona em modo degradado por palavras-chave e menu. Com chave, o Orion planeja com o modelo. Defina `LLM_PROVIDER=anthropic|openai|deepseek` no `.env`. Não há Azure no projeto.
+
+**Fallback de provedor (OpenRouter):** se `OPENROUTER_API_KEY` estiver definida (com `OPENROUTER_MODEL_ROUTER` e `OPENROUTER_MODEL_NARRATOR`), toda chamada ao provedor principal (`LLM_PROVIDER`) que falhar por erro do provedor (rede, limite, 5xx) tenta o OpenRouter em seguida, na mesma chamada — nunca antes de o principal falhar. Se só o OpenRouter estiver configurado, ele vira o único provedor. Se os dois faltarem, o bot cai no modo degradado, como já acontecia. A falha é registrada em log (`llm fallback: deepseek -> openrouter (...)`), e a telemetria (`app.llm_call`) mostra qual provedor respondeu de fato. Um plano recusado pela validação do Orion (agente ou ferramenta errados) não aciona o fallback: isso é erro do plano, não do provedor.
 
 **Testes:** os que usam banco precisam de um Postgres de teste em `TEST_DATABASE_URL` (padrão `postgresql://postgres@127.0.0.1:54399/omnidata_test`); sem ele são ignorados, e o resultado mostra quantos foram. Para rodar todos, crie esse banco e aplique as migrations nele.
 
@@ -167,7 +169,8 @@ uv run omnidata insights analyze negocios.csv                             # insi
 | `DATABASE_URL`, `DATABASE_URL_DIRECT` | Postgres | sim (caminho B) |
 | `HUBSPOT_ACCESS_TOKEN` | leitura/escrita no HubSpot | só com HubSpot real |
 | `WHATSAPP_*` | Meta Cloud API (token, app secret, verify token) | só com WhatsApp real |
-| `LLM_PROVIDER`, `ANTHROPIC_API_KEY` / `OPENAI_API_KEY` | planejamento e narração; `OPENAI_API_KEY` também transcreve áudios | opcional (sem elas: modo degradado) |
+| `LLM_PROVIDER`, `ANTHROPIC_API_KEY` / `OPENAI_API_KEY` / `DEEPSEEK_API_KEY` | planejamento e narração; `OPENAI_API_KEY` também transcreve áudios | opcional (sem elas: modo degradado) |
+| `OPENROUTER_API_KEY`, `OPENROUTER_MODEL_ROUTER`, `OPENROUTER_MODEL_NARRATOR` | fallback: usado se o `LLM_PROVIDER` falhar (ou sozinho, sem um principal) | opcional |
 | `ADMIN_API_TOKEN`, `CORS_ORIGINS` | upload de datasets pela API | só para usar a página Datasets contra a API |
 | `INGEST_MODE` | `direct` (padrão) ou `airbyte` | não |
 | `NEXT_PUBLIC_API_URL` (em `web/`) | liga o painel à API | não (sem ela o painel roda em modo demonstração) |

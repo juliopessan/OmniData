@@ -37,6 +37,12 @@ class Settings(BaseSettings):
     deepseek_base_url: str = "https://api.deepseek.com"
     deepseek_model_router: str = ""
     deepseek_model_narrator: str = ""
+    openrouter_api_key: str = ""       # fallback provider: tried after the primary (LLM_PROVIDER) if that call errors
+    openrouter_base_url: str = "https://openrouter.ai/api/v1"
+    openrouter_model_router: str = ""  # e.g. "deepseek/deepseek-chat" — OpenRouter's own model catalogue
+    openrouter_model_narrator: str = ""
+    openrouter_site_url: str = ""      # optional, sent as HTTP-Referer (OpenRouter uses it for their own rate-limit dashboards)
+    openrouter_app_name: str = ""      # optional, sent as X-Title
     transcribe_model: str = "gpt-transcribe"
     transcribe_fallback_model: str = "gpt-4o-mini-transcribe"
     transcribe_max_seconds: int = 180

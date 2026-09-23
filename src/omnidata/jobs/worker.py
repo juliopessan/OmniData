@@ -21,20 +21,40 @@ from ..ingest import jobs as ingest_jobs
 from ..ingest.backup import backup
 from ..llm.anthropic import AnthropicClient
 from ..llm.base import LlmClient
+from ..llm.fallback import FallbackLlmClient
 from ..llm.openai_chat import OpenAIChatClient
 from ..llm.transcribe import OpenAITranscriber, Transcriber
 
 log = logging.getLogger("omnidata.worker")
 
 
-def build_llm(s: Settings) -> LlmClient | None:
+def _build_primary(s: Settings) -> LlmClient | None:
     if s.llm_provider == "anthropic" and s.anthropic_api_key:
         return AnthropicClient(s.anthropic_api_key)
     if s.llm_provider == "openai" and s.openai_api_key and s.openai_model_router and s.openai_model_narrator:
         return OpenAIChatClient(s.openai_api_key, s.openai_model_router, s.openai_model_narrator, s.openai_base_url)
     if s.llm_provider == "deepseek" and s.deepseek_api_key and s.deepseek_model_router and s.deepseek_model_narrator:
         return OpenAIChatClient(s.deepseek_api_key, s.deepseek_model_router, s.deepseek_model_narrator, s.deepseek_base_url, provider="deepseek")
-    return None  # degraded (keyword/menu) mode
+    return None
+
+
+def _build_openrouter(s: Settings) -> LlmClient | None:
+    if not (s.openrouter_api_key and s.openrouter_model_router and s.openrouter_model_narrator):
+        return None
+    headers = {k: v for k, v in (("HTTP-Referer", s.openrouter_site_url), ("X-Title", s.openrouter_app_name)) if v}
+    return OpenAIChatClient(s.openrouter_api_key, s.openrouter_model_router, s.openrouter_model_narrator,
+                            s.openrouter_base_url, provider="openrouter", extra_headers=headers or None)
+
+
+def build_llm(s: Settings) -> LlmClient | None:
+    """Primary from LLM_PROVIDER; OpenRouter, if configured, is tried after it on any provider error (never before).
+    With only OPENROUTER_* set (no primary), OpenRouter is used alone. Neither configured: degraded (keyword/menu) mode."""
+    primary, fallback = _build_primary(s), _build_openrouter(s)
+    if primary and fallback:
+        def log_fallback(_from: str, to: str, exc: Exception) -> None:
+            log.warning("llm fallback: %s -> %s (%s)", _from, to, exc)
+        return FallbackLlmClient([(primary, s.llm_provider), (fallback, "openrouter")], on_fallback=log_fallback)
+    return primary or fallback  # degraded (keyword/menu) mode if neither is configured
 
 
 def build_transcriber(s: Settings) -> Transcriber | None:

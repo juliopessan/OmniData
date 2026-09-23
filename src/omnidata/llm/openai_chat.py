@@ -15,11 +15,13 @@ DEFAULT_BASE_URL = "https://api.openai.com/v1"
 
 class OpenAIChatClient:
     def __init__(self, api_key: str, router_model: str, narrator_model: str, base_url: str = DEFAULT_BASE_URL,
-                 transport: httpx.AsyncBaseTransport | None = None, provider: str = "openai") -> None:
-        self._provider = provider  # label in telemetry: any OpenAI-compatible endpoint (e.g. deepseek)
+                 transport: httpx.AsyncBaseTransport | None = None, provider: str = "openai",
+                 extra_headers: dict[str, str] | None = None) -> None:
+        self._provider = provider  # label in telemetry: any OpenAI-compatible endpoint (e.g. deepseek, openrouter)
         self._base = base_url.rstrip("/")
         self._router, self._narrator = router_model, narrator_model
-        self._http = httpx.AsyncClient(transport=transport, timeout=30.0, headers={"Authorization": f"Bearer {api_key}"})
+        headers = {"Authorization": f"Bearer {api_key}", **(extra_headers or {})}
+        self._http = httpx.AsyncClient(transport=transport, timeout=30.0, headers=headers)
 
     async def _chat(self, model: str, body: dict[str, Any]) -> tuple[dict[str, Any], Usage]:
         t0 = time.monotonic()
