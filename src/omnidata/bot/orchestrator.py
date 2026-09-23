@@ -332,6 +332,21 @@ def _sign(agent: T.Agent, r: Reply) -> Reply:
     return r
 
 
+def _recent_context(conn: Conn, user_id: str) -> str:
+    """The last completed exchange (never the message being processed right now — that one is still 'processing'),
+    so the router can resolve a follow-up like "isso"/"essas causas" instead of treating every message as isolated.
+    Deliberately short (one exchange, not a running history): keeps prompt size and cost bounded."""
+    with conn.cursor() as cur:
+        cur.execute("select direction, payload from app.wa_message where user_id=%s and status='done' "
+                    "order by received_at desc limit 2", (user_id,))
+        rows = cur.fetchall()[::-1]
+    lines = []
+    for r in rows:
+        t = (r["payload"] or {}).get("text")
+        if not t:
+            continue
+        lines.append(f"{'Vendedor' if r['direction'] == 'in' else 'Você'}: {mask_pii(t)[:300]}")
+    return "Contexto da última troca:\n" + "\n".join(lines) if lines else ""
 
 
 async def _orion(conn: Conn, deps: Deps, p: Principal, text: str) -> Reply:
@@ -353,7 +368,9 @@ async def _orion(conn: Conn, deps: Deps, p: Principal, text: str) -> Reply:
     llm_said_oos = False
     if deps.llm and not _over_budget(conn, p, deps.settings):
         try:
-            res = await deps.llm.route(ORION_SYSTEM, mask_pii(text), [plan_schema()])
+            context = _recent_context(conn, p.user_id)
+            user_text = f"{context}\n\nPedido atual: {mask_pii(text)}" if context else mask_pii(text)
+            res = await deps.llm.route(ORION_SYSTEM, user_text, [plan_schema()])
             _log_llm(conn, p.user_id, "planner", res.usage)
             steps, status = interpret_llm(res, forced)
             if status == "rejected":

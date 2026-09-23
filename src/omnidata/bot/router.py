@@ -21,7 +21,7 @@ _RULES: list[tuple[str, re.Pattern[str]]] = [
     ("get_quota_status", re.compile(r"\b(metas?|quotas?|atingimento|falta quanto|quanto falta)\b")),
     ("get_data_quality", re.compile(r"\b(qualidade|confiavel|confiar|meus dados|amostra)\b")),
     ("get_kpis", re.compile(r"\b(numeros?|kpis?|win ?rate|conversao|taxa de ganho|meus? resultados?)\b")),
-    ("list_deals_needing_action", re.compile(r"\b(acao|atencao|parados?|prioridades?|precisam|urgente|o que fazer|mexer|mexo)\b")),
+    ("list_deals_needing_action", re.compile(r"\b(acao|atencao|parados?|prioridades?|precisam|urgente|o que fazer|mexer|mexo|focar|foco|priorizar)\b")),
     ("get_pipeline_summary", re.compile(r"\b(pipeline|funil|etapas?|quantos negocios)\b")),
     ("get_morning_brief", re.compile(r"\b(meu dia|resumo|bom dia|brief|hoje)\b")),
 ]

@@ -491,6 +491,30 @@ async def test_alert_engine_budget_quiet_hours_snooze_and_telemetry(world):  # F
     assert r["viewed_at"] and r["snoozed_until"] > datetime.now(UTC) + timedelta(days=2) and r["acted_at"] and eff
 
 
+async def test_orion_sees_the_previous_exchange_to_resolve_a_follow_up(world):
+    conn, gw, w, s, ids = world
+    llm1 = FakeLlm(tool=ToolCall("get_playbook", {"topic": "objection"}), narration="Motivo de perda: preço.")
+    await say(conn, deps(gw, w, s, llm1), REP_A, "preciso de um script pra uma reunião difícil")
+
+    with conn.cursor() as cur:  # inbound() (tests/helpers.py) never sets user_id — production's real persist_inbound
+        cur.execute("update app.wa_message set user_id=%s where user_id is null", (ids["a"],))  # does, via phone lookup
+    conn.commit()
+
+    llm2 = FakeLlm(tool=ToolCall("get_playbook", {"topic": "objection"}))
+    await say(conn, deps(gw, w, s, llm2), REP_A, "um script para atacar essas causas")
+    sent_text = llm2.router_inputs[0]
+    assert "Contexto da última troca" in sent_text
+    assert "reunião difícil" in sent_text and "Motivo de perda" in sent_text
+    assert sent_text.endswith("Pedido atual: um script para atacar essas causas")
+
+
+async def test_orion_adds_no_context_block_on_the_first_message(world):
+    conn, gw, w, s, _ = world
+    llm = FakeLlm(tool=ToolCall("get_quota_status", {}))
+    await say(conn, deps(gw, w, s, llm), REP_A, "como estou na meta?")
+    assert "Contexto" not in llm.router_inputs[0]
+
+
 async def test_consecutive_steps_from_the_same_specialist_are_not_re_signed(world):
     # real bug found in a production transcript: "*Vega*: ... *Vega*: ..." when two plan steps both land on Vega
     conn, gw, w, s, _ = world

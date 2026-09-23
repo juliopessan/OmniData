@@ -94,7 +94,9 @@ TOOLS: dict[str, tuple[type[BaseModel], str]] = {
     "get_insight_coverage": (NoArgs, "Cobertura dos dados por insight: quanto do que foi dito é sustentado pelas notas."),
     "get_fix_queue": (InsightLimit, "Fila de correção dos dados: negócios abertos com lacunas (valor, data vencida, próximo passo, nota, nome) e quem corrige."),
     "get_insight_digest": (NoArgs, "Insight do dia: dor, demanda e sistema mais frequentes."),
-    "get_playbook": (PlaybookArgs, "Apoio de abordagem para a próxima conversa: quebra de objeção (motivos de perda reais), dores para explorar, ou termos e demandas mais citados — sempre a partir do que já foi registrado, nunca inventado."),
+    "get_playbook": (PlaybookArgs, "Apoio pra próxima conversa, a partir do que já foi registrado, nunca inventado. Escolha o topic: "
+                    "\"objection\" quando o pedido citar dificuldade, resistência, objeção ou \"reunião difícil\" (motivos de perda reais); "
+                    "\"pain\" quando pedir pra descobrir ou explorar dores do cliente; \"pitch\" só como abordagem geral, sem nenhum sinal de dificuldade."),
     "search_meeting_notes": (SearchMeetings, "Busca trechos de transcrições de reunião pelo que foi dito (por assunto, não por nome exato do negócio)."),
     "add_note": (AddNote, "Registrar uma nota em um negócio."),
     "create_task": (CreateTask, "Criar uma tarefa em um negócio."),
