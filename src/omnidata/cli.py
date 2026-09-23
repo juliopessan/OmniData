@@ -570,7 +570,7 @@ def user_invite(phone: str = typer.Option(..., help="E.164, e.g. +5511999999999"
         async def send() -> None:
             gw = EvolutionGateway(s.evolution_api_url, s.evolution_api_key, s.evolution_instance)
             try:
-                await gw.send_text(phone, S.ONBOARDING_ASK)
+                await gw.send_text(phone, S.ONBOARDING_ASK.format(name=name or ""))
             finally:
                 await gw.aclose()
         asyncio.run(send())

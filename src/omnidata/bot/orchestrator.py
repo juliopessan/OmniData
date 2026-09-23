@@ -212,7 +212,8 @@ async def _onboarding_or_refuse(conn: Conn, deps: Deps, phone: str, body: dict[s
             await send(conn, deps, phone, str(u["id"]), _sign(T.ORION, Reply(S.ONBOARDING_OK.format(name=u["display_name"] or ""))))
             return
         conn.commit()
-    await send(conn, deps, phone, str(u["id"]) if u else None, Reply(S.ONBOARDING_ASK if u else S.REFUSAL_UNKNOWN))
+    ask = S.ONBOARDING_ASK.format(name=u["display_name"] or "") if u else S.REFUSAL_UNKNOWN
+    await send(conn, deps, phone, str(u["id"]) if u else None, Reply(ask))
 
 
 # ---------------- deterministic handler for buttons/lists (no LLM) -----------------

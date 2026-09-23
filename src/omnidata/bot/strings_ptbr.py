@@ -14,7 +14,9 @@ LLM_DOWN_NOTE = "Estou em modo simples agora."
 ONBOARDING_OK = ("Oi, {name}! Orion aqui, coordenador do Observatório — sua equipe de assessores de vendas no WhatsApp. "
                   "Posso te ajudar com: meus números, como estou na meta, meu pipeline, negócios que pedem ação ou o resumo do meu dia. "
                   "É só perguntar, por exemplo “como estou na meta?”.")
-ONBOARDING_ASK = "Para ativar, responda *Aceito*. Vou usar seus dados de vendas do HubSpot para ajudar você."
+ONBOARDING_ASK = ("Oi, {name}! Eu sou o Orion, do Observatório — sua equipe de assistentes de vendas aqui no WhatsApp, sem nada "
+                   "para instalar ou aprender. Responda *Aceito* para eu ativar seu acesso usando seus dados de vendas do HubSpot; "
+                   "depois é só escrever como numa conversa normal, por exemplo “como estou na meta?”.")
 LOW_N = "Só tenho {n} negócios fechados no período, pouco para comparar com segurança. Prefere ver o mês anterior?"
 NO_DATA = "Não encontrei dados para isso no período."
 NO_MATCH_DEAL = "Não achei nenhum negócio seu parecido com “{q}”."
