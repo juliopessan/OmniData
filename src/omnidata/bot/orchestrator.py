@@ -93,8 +93,9 @@ async def process_next(conn: Conn, deps: Deps) -> bool:
 async def send(conn: Conn, deps: Deps, to: str, user_id: str | None, reply: Reply) -> None:
     max_delay = deps.settings.typing_delay_max_seconds
     if max_delay > 0:  # off by default (config.py); a "digitando..." pause before the reply lands
-        await deps.gateway.send_presence(to, True)
-        await asyncio.sleep(min(0.4 + len(reply.text) * 0.01, max_delay))
+        delay = min(0.4 + len(reply.text) * 0.01, max_delay)
+        await deps.gateway.send_presence(to, True, delay_ms=int(delay * 1000))
+        await asyncio.sleep(delay)
     if reply.list_rows:
         await deps.gateway.send_list(to, reply.text, reply.list_button, reply.list_rows)
         kind = "list"

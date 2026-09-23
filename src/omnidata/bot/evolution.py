@@ -162,11 +162,12 @@ class EvolutionGateway:
         import base64
         return base64.b64decode(b64), str(mime)
 
-    async def send_presence(self, to: str, composing: bool) -> None:
-        """Best-effort (never raises, ADR 0008 addendum): unverified endpoint shape — a real smoke test is still needed,
-        same discipline as OPEN-8 above, but a bad guess here must never block the real reply from going out."""
+    async def send_presence(self, to: str, composing: bool, delay_ms: int = 1200) -> None:
+        """Confirmed 2026-09-23 against the real instance: `delay` (ms) is required, undocumented — omitting it answers
+        400 (`instance requires property "delay"`). Still best-effort (never raises): a bad presence call must never
+        block the real reply from going out."""
         try:
-            await self._post("/chat/sendPresence", {"number": to.lstrip("+"), "presence": "composing" if composing else "paused"})
+            await self._post("/chat/sendPresence", {"number": to.lstrip("+"), "presence": "composing" if composing else "paused", "delay": delay_ms})
         except GatewayError:
             pass
 

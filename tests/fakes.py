@@ -15,7 +15,7 @@ class FakeGateway:
         self.reacted: list[tuple[str, str, str]] = []
         self.presence: list[tuple[str, bool]] = []
 
-    async def send_presence(self, to: str, composing: bool) -> None:
+    async def send_presence(self, to: str, composing: bool, delay_ms: int = 1200) -> None:
         self.presence.append((to, composing))
 
     async def react(self, to: str, message_id: str, emoji: str) -> None:

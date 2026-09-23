@@ -28,12 +28,18 @@ Before real traffic: send one real text and one real audio message through the c
 - `set_webhook` — **the documented flat body was wrong.** `POST /webhook/set/{instance}` with `{"enabled": ..., "url": ..., ...}` at the top level answers 400 (`instance requires property "webhook"`); the body must nest under a `"webhook"` key. Fixed in `EvolutionAdminClient.set_webhook`, with a regression test.
 - **Full round trip, first through a local API + worker tunnelled with ngrok, then again through a permanent production deploy** ([docs/deploy-vps.md](../deploy-vps.md), a Hostinger VPS already running Traefik + a shared Postgres): real WhatsApp texts were received and the stored payload matched `message_kind()`'s `conversation`/`key.remoteJid` assumption exactly — **no parser change needed**. Verified with the real DeepSeek LLM (not just the keyword router): an unregistered sender got the correct refusal (`REFUSAL_UNKNOWN`, Principal-scoped, no tool called); a registered one, after onboarding, got real answers from **Vega** (`get_quota_status`), and from **Lyra + Altair + Argus together** (Orion splitting a broad "quais insights" request across all three, per the OVERVIEW_PLAN in `bot/orchestrator.py`). Zero errors across 10 messages; `app.llm_call` shows real DeepSeek token usage for every planner/narrator call. Still unverified: audio (voice notes), group messages, button/list replies, and any write action (`add_note`/`create_task`/`propose_deal_update`/confirmation).
 
-### Addendum: humanized flow (2026-09-23) — `send_presence`/`sendReaction`, unverified
+### Addendum: humanized flow (2026-09-23) — `send_presence`/`sendReaction`
 Two more best-effort calls were added to `EvolutionGateway` for a more human-feeling conversation: `send_presence` (the
 "digitando..." indicator before a reply, `POST /chat/sendPresence/{instance}`, off by default via `TYPING_DELAY_MAX_SECONDS=0`)
 and `react` (a 👍 on a bare "valeu"/"obrigado" instead of a menu fallback, `POST /message/sendReaction/{instance}`, rebuilding
-`key.remoteJid` as `<number>@s.whatsapp.net`). Neither endpoint shape has been confirmed against the real instance yet — unlike
-every other `MessagingGateway` method, both are deliberately designed to swallow `GatewayError` internally, so a wrong guess
-here degrades to "no typing indicator" / "no reaction" rather than blocking the real reply. Run a real smoke test (send
-"valeu" from a registered number, confirm the reaction lands) once the WhatsApp session is reconnected, same discipline as
-the rest of this ADR.
+`key.remoteJid` as `<number>@s.whatsapp.net`). Unlike every other `MessagingGateway` method, both are deliberately designed to
+swallow `GatewayError` internally, so a wrong guess degrades to "no typing indicator" / "no reaction" rather than blocking the
+real reply — which is exactly what happened on the first deploy and is how the bug below was found without any user-facing
+impact.
+
+**Verified against the user's real instance (2026-09-23), after reconnecting the WhatsApp session:**
+- `sendReaction` — worked on the first real call, exact body as written (`key.remoteJid`/`id`/`fromMe: false` + `reaction`).
+- `send_presence` — **the documented-nowhere body was missing a required field.** `POST /chat/sendPresence/{instance}` without
+  a `delay` (ms) answers 400 (`instance requires property "delay"`); confirmed via a direct `curl` reproduction. Fixed in
+  `EvolutionGateway.send_presence` (now takes `delay_ms`, set from the same duration `orchestrator.send()` sleeps for), with
+  the real reply for that message going out normally throughout — the best-effort contract worked exactly as designed.
