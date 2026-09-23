@@ -1,9 +1,6 @@
-import hashlib
-import hmac
-
 import pytest
 
-from omnidata.bot.gateway import GatewayError, build_buttons, build_list, verify_signature
+from omnidata.bot.evolution import verify_evolution_secret
 from omnidata.bot.router import keyword_route
 from omnidata.bot.tools import catalog
 from omnidata.llm.guard import numbers_ok
@@ -29,23 +26,10 @@ def test_number_guard_catches_invented_numbers(bad):  # must catch 100% of inven
     assert not numbers_ok(bad, data)
 
 
-def test_signature_verification():  # FR: verify X-Hub-Signature-256
-    body = b'{"a":1}'
-    sig = "sha256=" + hmac.new(b"secret", body, hashlib.sha256).hexdigest()
-    assert verify_signature("secret", body, sig)
-    assert not verify_signature("secret", body + b" ", sig)
-    assert not verify_signature("secret", body, None) and not verify_signature("", body, sig)
-
-
-def test_whatsapp_limits_enforced():  # §12.1
-    b = build_buttons("x" * 2000, [("act:confirm:1", "Confirmar com título muito longo demais")])
-    assert len(b["body"]["text"]) == 1024 and len(b["action"]["buttons"][0]["reply"]["title"]) == 20
-    with pytest.raises(GatewayError):
-        build_buttons("x", [(str(i), "t") for i in range(4)])
-    with pytest.raises(GatewayError):
-        build_list("x", "b", [(str(i), "t", "d") for i in range(11)])
-    row = build_list("x", "b", [("1", "t" * 50, "d" * 200)])["action"]["sections"][0]["rows"][0]
-    assert len(row["title"]) == 24 and len(row["description"]) == 72
+def test_evolution_webhook_secret_verification():  # ADR 0008: no native signature, a shared header instead
+    assert verify_evolution_secret("secret", "secret")
+    assert not verify_evolution_secret("secret", "secret ")
+    assert not verify_evolution_secret("secret", None) and not verify_evolution_secret("", "secret")
 
 
 def test_model_can_never_supply_owner_scope():  # rule 7

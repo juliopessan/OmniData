@@ -10,6 +10,8 @@ from typing import TYPE_CHECKING
 import typer
 
 if TYPE_CHECKING:
+    from .bot.evolution import EvolutionAdminClient
+    from .config import Settings
     from .crm.hubspot.client import HubSpotClient
     from .integrations.airbyte.client import AirbyteClient
 
@@ -39,9 +41,135 @@ hygiene_app = typer.Typer(no_args_is_help=True, help="Data hygiene: the Coach's 
 app.add_typer(insights_app, name="insights")
 eval_app = typer.Typer(no_args_is_help=True, help="Evaluations (no database needed)")
 forecast_app = typer.Typer(no_args_is_help=True, help="Statistical forecast of the open pipeline")
+evolution_app = typer.Typer(no_args_is_help=True, help="Evolution API: create/connect/inspect the WhatsApp instance (ADR 0008)")
 app.add_typer(hygiene_app, name="hygiene")
 app.add_typer(forecast_app, name="forecast")
 app.add_typer(eval_app, name="eval")
+app.add_typer(evolution_app, name="evolution")
+
+
+def _evolution_admin() -> tuple[Settings, EvolutionAdminClient]:
+    """Common guard + client for every evolution_app command; returns (Settings, EvolutionAdminClient)."""
+    from .bot.evolution import EvolutionAdminClient
+    s = get_settings()
+    if not (s.evolution_api_url and s.evolution_api_key):
+        typer.echo("set EVOLUTION_API_URL and EVOLUTION_API_KEY first (.env)", err=True)
+        raise typer.Exit(2)
+    return s, EvolutionAdminClient(s.evolution_api_url, s.evolution_api_key)
+
+
+@evolution_app.command("create-instance")
+def evolution_create_instance(
+    name: str = typer.Option(..., help="instance name, e.g. omnidata"),
+    number: str = typer.Option("", help="E.164 WhatsApp number for this instance (optional; Evolution can ask on scan instead)"),
+    webhook_url: str = typer.Option("", help="e.g. https://your-api-host/webhooks/evolution (needs EVOLUTION_WEBHOOK_SECRET set)"),
+    save_qr: Path = typer.Option(Path("evolution-qrcode.png"), help="where to save the QR code, if the response includes one"),
+) -> None:
+    """Step 1 of the pipeline (ADR 0008): create the instance. If it isn't already connected, saves a QR code —
+    open it and scan with WhatsApp on the phone/number that will run the bot (Settings > Linked Devices > Link a Device)."""
+    import base64
+
+    s, c = _evolution_admin()
+    if webhook_url and not s.evolution_webhook_secret:
+        typer.echo("EVOLUTION_WEBHOOK_SECRET is not set: the webhook would accept unauthenticated calls. Set it first.", err=True)
+        raise typer.Exit(2)
+
+    async def go() -> None:
+        try:
+            res = await c.create_instance(name, number=number or None, webhook_url=webhook_url or None,
+                                          webhook_secret=s.evolution_webhook_secret or None)
+            qr = (res.get("qrcode") or {}).get("base64")
+            if isinstance(qr, str) and qr:
+                save_qr.write_bytes(base64.b64decode(qr.split(",", 1)[-1]))
+                typer.echo(f"instance '{name}' created. QR code saved to {save_qr} — scan it with WhatsApp before it expires.")
+            else:
+                typer.echo(f"instance '{name}' created. No QR in the response — run `omnidata evolution qrcode --name {name}`.")
+        finally:
+            await c.aclose()
+    asyncio.run(go())
+    typer.echo(f"Once connected (`omnidata evolution status --name {name}` shows open), set EVOLUTION_INSTANCE={name} in your .env.")
+
+
+@evolution_app.command("qrcode")
+def evolution_qrcode(name: str = typer.Option(..., help="instance name"),
+                     save_qr: Path = typer.Option(Path("evolution-qrcode.png"))) -> None:
+    """Step 2: (re-)issue a QR code for an instance that isn't connected yet."""
+    import base64
+
+    _, c = _evolution_admin()
+
+    async def go() -> None:
+        try:
+            res = await c.qrcode(name)
+            b64 = res.get("base64")
+            if not isinstance(b64, str) or not b64:
+                typer.echo("no QR code in the response (the instance may already be connected — check `evolution status`)", err=True)
+                raise typer.Exit(1)
+            save_qr.write_bytes(base64.b64decode(b64.split(",", 1)[-1]))
+            typer.echo(f"QR code saved to {save_qr} — scan it with WhatsApp before it expires.")
+        finally:
+            await c.aclose()
+    asyncio.run(go())
+
+
+@evolution_app.command("status")
+def evolution_status(name: str = typer.Option(..., help="instance name")) -> None:
+    """Step 3: poll until this prints 'open' (connected). 'connecting' right after a scan is normal for a few seconds."""
+    _, c = _evolution_admin()
+
+    async def go() -> None:
+        try:
+            typer.echo(await c.connection_state(name))
+        finally:
+            await c.aclose()
+    asyncio.run(go())
+
+
+@evolution_app.command("set-webhook")
+def evolution_set_webhook(name: str = typer.Option(..., help="instance name"),
+                          url: str = typer.Option(..., help="e.g. https://your-api-host/webhooks/evolution")) -> None:
+    """Reconfigure the webhook on an already-created instance (e.g. after moving where the API is hosted)."""
+    s, c = _evolution_admin()
+    if not s.evolution_webhook_secret:
+        typer.echo("EVOLUTION_WEBHOOK_SECRET is not set: the webhook would accept unauthenticated calls. Set it first.", err=True)
+        raise typer.Exit(2)
+
+    async def go() -> None:
+        try:
+            await c.set_webhook(name, url, s.evolution_webhook_secret)
+            typer.echo("webhook set")
+        finally:
+            await c.aclose()
+    asyncio.run(go())
+
+
+@evolution_app.command("list-instances")
+def evolution_list_instances() -> None:
+    _, c = _evolution_admin()
+
+    async def go() -> None:
+        try:
+            for i in await c.fetch_instances():
+                typer.echo(i)
+        finally:
+            await c.aclose()
+    asyncio.run(go())
+
+
+@evolution_app.command("delete-instance")
+def evolution_delete_instance(name: str = typer.Option(..., help="instance name"),
+                              yes: bool = typer.Option(False, "--yes", help="skip the confirmation prompt")) -> None:
+    if not yes:
+        typer.confirm(f"Delete Evolution instance '{name}'? This disconnects the WhatsApp number.", abort=True)
+    _, c = _evolution_admin()
+
+    async def go() -> None:
+        try:
+            await c.delete_instance(name)
+            typer.echo(f"instance '{name}' deleted")
+        finally:
+            await c.aclose()
+    asyncio.run(go())
 
 
 @dataset_app.command("import")
@@ -419,10 +547,11 @@ def serve_worker() -> None:
 @user_app.command("invite")
 def user_invite(phone: str = typer.Option(..., help="E.164, e.g. +5511999999999"), owner: str = typer.Option(..., help="HubSpot owner id"),
                 role: str = "rep", name: str = "", manager: str = typer.Option("", help="manager phone (E.164)")) -> None:
-    """FR-BOT-1: create the user as 'invited' and send template onboarding_v1. Activation happens on the reply 'Aceito'."""
+    """FR-BOT-1: create the user as 'invited' and send the onboarding text. Activation happens on the reply 'Aceito'."""
     import re
 
-    from .bot.gateway import WhatsAppCloudGateway
+    from .bot import strings_ptbr as S
+    from .bot.evolution import EvolutionGateway
     from .db import connect
     if not re.fullmatch(r"\+\d{10,15}", phone) or role not in ("rep", "manager", "admin"):
         typer.echo("invalid phone (E.164) or role", err=True)
@@ -437,13 +566,17 @@ def user_invite(phone: str = typer.Option(..., help="E.164, e.g. +5511999999999"
                     "on conflict (phone_e164) do update set display_name=excluded.display_name returning id", (owner, phone, name or None, role, mid))
         conn.commit()
     s = get_settings()
-    if s.whatsapp_access_token:
+    if s.evolution_api_key and s.evolution_instance:
         async def send() -> None:
-            await WhatsAppCloudGateway(s.whatsapp_phone_number_id, s.whatsapp_access_token).send_template(phone, "onboarding_v1", [name or "tudo bem"], "aceito")
+            gw = EvolutionGateway(s.evolution_api_url, s.evolution_api_key, s.evolution_instance)
+            try:
+                await gw.send_text(phone, S.ONBOARDING_ASK)
+            finally:
+                await gw.aclose()
         asyncio.run(send())
-        typer.echo("invited + template sent")
+        typer.echo("invited + onboarding text sent")
     else:
-        typer.echo("invited (WHATSAPP_ACCESS_TOKEN not set: template not sent)")
+        typer.echo("invited (EVOLUTION_API_KEY/EVOLUTION_INSTANCE not set: onboarding text not sent)")
 
 
 @user_app.command("erase")

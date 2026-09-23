@@ -1,8 +1,6 @@
 """End-to-end bot flows against Postgres with fake WhatsApp/HubSpot/LLM. FR-BOT-1..8, FR-WRT-1..5, FR-ALR-1..3."""
 from __future__ import annotations
 
-import hashlib
-import hmac
 import json
 from datetime import UTC, datetime, timedelta
 
@@ -325,32 +323,34 @@ async def test_audio_without_transcriber_or_empty_or_over_budget(world):
 
 
 # ---------------- webhook ----------------
-def _sig(secret, body):
-    return "sha256=" + hmac.new(secret.encode(), body, hashlib.sha256).hexdigest()
+def _upsert(msg_id: str, jid: str = "5511900000001@s.whatsapp.net", text: str = "meta?", from_me: bool = False) -> dict:
+    return {"event": "messages.upsert", "instance": "omnidata",
+            "data": {"key": {"id": msg_id, "remoteJid": jid, "fromMe": from_me}, "message": {"conversation": text}}}
 
 
-def test_webhook_signature_dedupe_and_persist(conn, monkeypatch):  # §11.1 step 1, edge: duplicate delivery
+def test_webhook_secret_dedupe_ignores_own_messages_and_persists(conn, monkeypatch):  # §11.1 step 1, ADR 0008
     from omnidata.config import get_settings
     from omnidata.db import connect
-    monkeypatch.setenv("WHATSAPP_APP_SECRET", "s3cret")
-    monkeypatch.setenv("WHATSAPP_VERIFY_TOKEN", "vt")
+    monkeypatch.setenv("EVOLUTION_WEBHOOK_SECRET", "s3cret")
     get_settings.cache_clear()
     add_user(conn, REP_A, "9000")
     client = TestClient(create_app(lambda: connect(TEST_DSN)))
-    payload = {"entry": [{"changes": [{"value": {"messages": [
-        {"id": "wamid.X1", "from": "5511900000001", "type": "text", "text": {"body": "meta?"}}]}}]}]}
-    raw = json.dumps(payload).encode()
-    assert client.post("/webhooks/whatsapp", content=raw).status_code == 401
-    assert client.post("/webhooks/whatsapp", content=raw, headers={"X-Hub-Signature-256": "sha256=bad"}).status_code == 401
-    ok = {"X-Hub-Signature-256": _sig("s3cret", raw)}
-    assert client.post("/webhooks/whatsapp", content=raw, headers=ok).status_code == 200
-    assert client.post("/webhooks/whatsapp", content=raw, headers=ok).status_code == 200  # Meta retry
+    raw = json.dumps(_upsert("EVT.X1")).encode()
+    assert client.post("/webhooks/evolution", content=raw).status_code == 401  # no header at all
+    assert client.post("/webhooks/evolution", content=raw, headers={"x-omnidata-secret": "bad"}).status_code == 401
+    ok = {"x-omnidata-secret": "s3cret"}
+    assert client.post("/webhooks/evolution", content=raw, headers=ok).status_code == 200
+    assert client.post("/webhooks/evolution", content=raw, headers=ok).status_code == 200  # a retried delivery
     with conn.cursor() as cur:
-        cur.execute("select count(*) n, min(status) s from app.wa_message where wa_message_id='wamid.X1'")
+        cur.execute("select count(*) n, min(status) s from app.wa_message where wa_message_id='EVT.X1'")
         r = cur.fetchone()
     assert r["n"] == 1 and r["s"] == "received"
-    assert client.get("/webhooks/whatsapp", params={"hub.mode": "subscribe", "hub.verify_token": "vt", "hub.challenge": "42"}).text == "42"
-    assert client.get("/webhooks/whatsapp", params={"hub.mode": "subscribe", "hub.verify_token": "no", "hub.challenge": "42"}).status_code == 403
+    # Baileys echoes the bot's own outgoing messages back through this same webhook (fromMe: true): must never be stored as inbound
+    echo = json.dumps(_upsert("EVT.OUT", from_me=True)).encode()
+    assert client.post("/webhooks/evolution", content=echo, headers=ok).status_code == 200
+    with conn.cursor() as cur:
+        cur.execute("select count(*) n from app.wa_message where wa_message_id='EVT.OUT'")
+        assert cur.fetchone()["n"] == 0
     assert client.get("/healthz").json() == {"status": "ok"}
     get_settings.cache_clear()
 

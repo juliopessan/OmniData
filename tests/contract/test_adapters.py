@@ -3,35 +3,35 @@ import json
 
 import httpx
 
-from omnidata.bot.gateway import WhatsAppCloudGateway
+from omnidata.bot.evolution import EvolutionGateway
 from omnidata.crm.hubspot.client import HubSpotClient
 from omnidata.crm.hubspot.writeback import NOTE_TO_DEAL, HubSpotWriter
 from omnidata.llm.anthropic import AnthropicClient
 from omnidata.llm.openai_chat import OpenAIChatClient
 
 
-async def test_whatsapp_send_shapes():
+async def test_evolution_send_shapes():
+    """send_text goes straight to Evolution's own body; send_buttons/send_list degrade to numbered plain text
+    (Baileys has no reliable native interactive UI) but keep the option titles, so a human reply still makes sense."""
     seen = []
 
     def h(req):
-        seen.append((str(req.url), json.loads(req.content), req.headers["authorization"]))
-        return httpx.Response(200, json={"messages": [{"id": "wamid.ok"}]})
-    gw = WhatsAppCloudGateway("PNID", "TOKEN", transport=httpx.MockTransport(h))
-    assert await gw.send_text("+5511999", "oi") == "wamid.ok"
+        seen.append((str(req.url), json.loads(req.content), req.headers["apikey"]))
+        return httpx.Response(200, json={"key": {"id": "3EB0X"}})
+    gw = EvolutionGateway("https://evo.example.com", "TOKEN", "omnidata", transport=httpx.MockTransport(h))
+    assert await gw.send_text("+5511999", "oi") == "3EB0X"
     await gw.send_buttons("+5511999", "ok?", [("act:confirm:1", "Confirmar")])
-    await gw.send_template("+5511999", "morning_brief_v1", ["Ana", "3"], "act:open:brief")
+    await gw.send_list("+5511999", "pick one", "Ver", [("menu:kpis", "Meus números", "Win rate e meta")])
     url, body, auth = seen[0]
-    assert url.endswith("/PNID/messages") and auth == "Bearer TOKEN" and body["to"] == "5511999" and body["messaging_product"] == "whatsapp"
-    assert seen[1][1]["interactive"]["action"]["buttons"][0]["reply"]["id"] == "act:confirm:1"
-    tpl = seen[2][1]["template"]
-    assert tpl["language"]["code"] == "pt_BR" and tpl["components"][1]["sub_type"] == "quick_reply"
+    assert url == "https://evo.example.com/message/sendText/omnidata" and auth == "TOKEN" and body["number"] == "5511999"
+    assert "1. Confirmar" in seen[1][1]["text"] and "1. Meus números" in seen[2][1]["text"]
 
 
-async def test_whatsapp_error_raises_without_leaking_token():
+async def test_evolution_error_raises_without_leaking_the_api_key():
     import pytest
 
     from omnidata.bot.gateway import GatewayError
-    gw = WhatsAppCloudGateway("P", "SECRET", transport=httpx.MockTransport(lambda r: httpx.Response(400, text="bad")))
+    gw = EvolutionGateway("https://evo.example.com", "SECRET", "omnidata", transport=httpx.MockTransport(lambda r: httpx.Response(400, text="bad")))
     with pytest.raises(GatewayError) as e:
         await gw.send_text("+55", "x")
     assert "SECRET" not in str(e.value)

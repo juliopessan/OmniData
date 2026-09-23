@@ -9,11 +9,22 @@ Code is done and tested against mocks. **Nothing below has been exercised agains
 3. Verify association type ids in `crm/hubspot/writeback.py` (note→deal 214, task→deal 216) with one manual note creation.
 4. `omnidata ingest backfill --months 24` then `omnidata audit` (go/no-go per use case).
 
-## 2. WhatsApp Cloud API (OPEN-5, OPEN-9)
-1. Meta Business verification, a phone number, a permanent system-user token → `WHATSAPP_ACCESS_TOKEN`, `WHATSAPP_PHONE_NUMBER_ID`.
-2. Webhook URL `https://<api-host>/webhooks/whatsapp`, verify token = `WHATSAPP_VERIFY_TOKEN`, subscribe to `messages`. App secret → `WHATSAPP_APP_SECRET`.
-3. Submit the templates in `docs/templates.md` (utility category). Approval lead time is the critical path.
+## 2. WhatsApp via Evolution API (OPEN-5, OPEN-8, OPEN-9, ADR 0008)
+No Meta Business verification, no template approval: this is the WhatsApp Web protocol (Baileys), self-hosted, not the
+official Cloud API. That trade means less friction to get connected, but it is not Meta's sanctioned integration path —
+review the risk in ADR 0008 before using a number that matters.
+1. Have a running Evolution API server and its global key → `EVOLUTION_API_URL`, `EVOLUTION_API_KEY`. Invent a random
+   value for `EVOLUTION_WEBHOOK_SECRET` (e.g. `openssl rand -hex 32`) — Evolution has no native webhook signature, this
+   header is the only thing standing between `/webhooks/evolution` and anyone who finds the URL.
+2. `omnidata evolution create-instance --name omnidata --webhook-url https://<api-host>/webhooks/evolution` saves a QR
+   code (default `evolution-qrcode.png`) — open it and scan with WhatsApp on the number that will run the bot (Settings
+   → Linked Devices → Link a Device). Poll `omnidata evolution status --name omnidata` until it prints `open`.
+3. Put that instance name in `EVOLUTION_INSTANCE`.
 4. Invite a test user: `omnidata user invite --phone +55... --owner <hs_owner_id> --name Ana`; reply **Aceito** on WhatsApp.
+5. Before trusting it with real conversations: send yourself one real text and one real audio message and confirm both
+   land in `app.wa_message`, and check the exact webhook payload your instance actually sends against
+   `bot/webhook.py`'s parser (OPEN-8: the field names there come from public docs that disagree with themselves across
+   pages/versions, never from a real payload).
 
 ## 3. LLM and voice notes (OPEN-7, ADR 0004)
 - Chat: `LLM_PROVIDER=anthropic` + `ANTHROPIC_API_KEY` (default), or `openai` + `OPENAI_API_KEY`, `OPENAI_MODEL_ROUTER`, `OPENAI_MODEL_NARRATOR`.

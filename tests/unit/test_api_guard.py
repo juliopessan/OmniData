@@ -71,14 +71,20 @@ def test_a_chunked_upload_without_content_length_is_cut_off_at_the_limit(monkeyp
     assert used["bytes"] <= 1000 + MULTIPART_OVERHEAD + len(chunk)      # stopped within one chunk of the limit, not at 2 MB
 
 
-def test_the_whatsapp_webhook_body_is_capped_before_the_signature_is_checked(monkeypatch):
-    app = _app(monkeypatch, WEBHOOK_MAX_BYTES="5000", WHATSAPP_APP_SECRET="app-secret")
-    status, _, used = _call(app, "POST", "/webhooks/whatsapp", {"x-hub-signature-256": "sha256=00"}, chunks=[b"x"], declared=6000)
+def test_the_evolution_webhook_body_is_capped_before_the_secret_is_checked(monkeypatch):
+    app = _app(monkeypatch, WEBHOOK_MAX_BYTES="5000", EVOLUTION_WEBHOOK_SECRET="app-secret")
+    status, _, used = _call(app, "POST", "/webhooks/evolution", {"x-omnidata-secret": "wrong"}, chunks=[b"x"], declared=6000)
     assert status == 413 and used["reads"] == 0
-    status, _, used = _call(app, "POST", "/webhooks/whatsapp", chunks=[b"x" * 2000] * 5)
+    # Evolution's own auth is a plain header (unlike Meta's HMAC, which needed the body to compute the signature),
+    # so the route checks it via FastAPI's Header() dependency BEFORE ever touching the body — a missing header is
+    # refused without reading a single byte, even faster than the size cap below.
+    status, _, used = _call(app, "POST", "/webhooks/evolution", chunks=[b"x" * 2000] * 5)
+    assert status == 401 and used["reads"] == 0
+    # With a VALID header the route proceeds to read the body — that read still goes through the size cap.
+    status, _, used = _call(app, "POST", "/webhooks/evolution", {"x-omnidata-secret": "app-secret"}, chunks=[b"x" * 2000] * 5)
     assert status == 413 and used["bytes"] <= 5000 + 2000
-    status, _, _ = _call(app, "POST", "/webhooks/whatsapp", {"x-hub-signature-256": "sha256=00"}, chunks=[b"{}"], declared=2)
-    assert status == 401                                       # a small body still reaches the signature check, which refuses it
+    status, _, _ = _call(app, "POST", "/webhooks/evolution", {"x-omnidata-secret": "wrong"}, chunks=[b"{}"], declared=2)
+    assert status == 401                                       # a small body still reaches the secret check, which refuses it
 
 
 def test_reads_and_other_routes_are_untouched(monkeypatch):

@@ -24,10 +24,10 @@ class Settings(BaseSettings):
     stage_age_default_days: int = 14
     min_n_ranking: int = 20
     model_min_closed: int = 300
-    whatsapp_phone_number_id: str = ""
-    whatsapp_access_token: str = ""
-    whatsapp_app_secret: str = ""
-    whatsapp_verify_token: str = ""
+    evolution_api_url: str = ""        # e.g. https://evolution.example.com
+    evolution_api_key: str = ""        # the server's global AUTHENTICATION_API_KEY
+    evolution_instance: str = ""       # instance name to send/receive on (create with `omnidata evolution create-instance`)
+    evolution_webhook_secret: str = "" # shared secret we set on Evolution's webhook config; no native signature to check instead
     llm_provider: str = "anthropic"  # anthropic | openai | deepseek
     openai_api_key: str = ""
     openai_base_url: str = "https://api.openai.com/v1"

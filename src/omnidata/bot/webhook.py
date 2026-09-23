@@ -1,4 +1,6 @@
-"""WhatsApp webhook (§11.1 step 1): verify signature, persist, return 200 fast. No processing here."""
+"""Evolution API webhook (§11.1 step 1, ADR 0008): verify the shared secret, persist, return 200 fast. No processing here.
+No native request signature (unlike Meta's HMAC): the secret is a custom header WE configured via
+EvolutionAdminClient.set_webhook (X-OmniData-Secret), checked constant-time in verify_evolution_secret."""
 from __future__ import annotations
 
 import json
@@ -6,77 +8,79 @@ import logging
 from typing import Any
 
 import psycopg
-from fastapi import APIRouter, Header, HTTPException, Query, Request, Response
+from fastapi import APIRouter, Header, HTTPException, Request
 from psycopg.types.json import Jsonb
 
 from ..config import get_settings
-from .gateway import verify_signature
+from .evolution import verify_evolution_secret
 
 log = logging.getLogger("omnidata.webhook")
 router = APIRouter()
+SECRET_HEADER = "x-omnidata-secret"
 
 
-def normalize_phone(wa_from: str) -> str:
-    return "+" + wa_from.lstrip("+")
+def normalize_phone(jid: str) -> str:
+    """Evolution's remoteJid is '<number>@s.whatsapp.net' (or '@g.us' for groups, never routed to a Principal)."""
+    return "+" + jid.split("@", 1)[0].lstrip("+")
 
 
-def extract_messages(payload: dict[str, Any]) -> list[dict[str, Any]]:
-    """Flatten Meta's entry/changes/value/messages nesting into [{id, from, type, body, ...}]."""
-    out = []
-    for entry in payload.get("entry", []):
-        for change in entry.get("changes", []):
-            for m in (change.get("value") or {}).get("messages", []) or []:
-                out.append(m)
-    return out
+def extract_events(payload: dict[str, Any]) -> list[dict[str, Any]]:
+    """Evolution posts one event per call. `data` is usually a single object, but is handled as a list too in case
+    a deployment batches upserts (OPEN-8: unverified against a real instance either way)."""
+    if str(payload.get("event", "")).replace("_", ".").lower() != "messages.upsert":
+        return []
+    data = payload.get("data")
+    return [d for d in (data if isinstance(data, list) else [data]) if isinstance(d, dict)]
 
 
-def message_kind(m: dict[str, Any]) -> tuple[str, dict[str, Any]]:
-    t = m.get("type")
-    if t == "text":
-        return "text", {"text": m["text"]["body"]}
-    if t == "audio":
-        return "audio", {"media_id": m["audio"]["id"], "mime": m["audio"].get("mime_type", "audio/ogg")}
-    if t == "interactive":
-        i = m["interactive"]
-        r = i.get("button_reply") or i.get("list_reply") or {}
-        return "interactive", {"reply_id": r.get("id", ""), "title": r.get("title", "")}
-    if t == "button":  # template quick-reply
-        return "interactive", {"reply_id": m["button"].get("payload", ""), "title": m["button"].get("text", "")}
-    return "unsupported", {"type": t}
+def message_kind(d: dict[str, Any]) -> tuple[str, dict[str, Any]] | None:
+    """None = not a kind we handle (system message, reaction, etc.) — persisted nowhere, logged as skipped only."""
+    msg = d.get("message") or {}
+    if "conversation" in msg:
+        return "text", {"text": msg["conversation"]}
+    if "extendedTextMessage" in msg:  # a text reply that quotes another message
+        return "text", {"text": (msg["extendedTextMessage"] or {}).get("text", "")}
+    if "audioMessage" in msg:
+        return "audio", {"media_id": d.get("key", {}).get("id", ""), "mime": (msg["audioMessage"] or {}).get("mimetype", "audio/ogg")}
+    if "buttonsResponseMessage" in msg:
+        r = msg["buttonsResponseMessage"] or {}
+        return "interactive", {"reply_id": r.get("selectedButtonId", ""), "title": r.get("selectedDisplayText", "")}
+    if "listResponseMessage" in msg:
+        r = (msg["listResponseMessage"] or {}).get("singleSelectReply", {})
+        return "interactive", {"reply_id": r.get("selectedRowId", ""), "title": ""}
+    return None
 
 
 def persist_inbound(conn: psycopg.Connection[Any], payload: dict[str, Any]) -> int:
-    """Insert each message once (wa_message_id is UNIQUE, so duplicate deliveries are ignored)."""
+    """Insert each message once (wa_message_id is UNIQUE, so duplicate deliveries are ignored). Messages the bot itself
+    sent come back through this same webhook (Baileys echoes fromMe:true) and must never be treated as inbound."""
     n = 0
-    for m in extract_messages(payload):
-        kind, body = message_kind(m)
-        body["from"] = normalize_phone(m["from"])
+    for d in extract_events(payload):
+        key = d.get("key") or {}
+        if key.get("fromMe") or not key.get("id") or not key.get("remoteJid"):
+            continue
+        parsed = message_kind(d)
+        if parsed is None:
+            continue
+        kind, body = parsed
+        body["from"] = normalize_phone(str(key["remoteJid"]))
         with conn.cursor() as cur:
             cur.execute("select id from app.app_user where phone_e164 = %s", (body["from"],))
             u = cur.fetchone()
             cur.execute(
                 "insert into app.wa_message (wa_message_id, user_id, direction, kind, payload) "
                 "values (%s, %s, 'in', %s, %s) on conflict (wa_message_id) do nothing",
-                (m["id"], u["id"] if u else None, kind, Jsonb(body)))
+                (str(key["id"]), u["id"] if u else None, kind, Jsonb(body)))
             n += cur.rowcount
     conn.commit()
     return n
 
 
-@router.get("/webhooks/whatsapp")
-async def verify(mode: str = Query("", alias="hub.mode"), token: str = Query("", alias="hub.verify_token"),
-                 challenge: str = Query("", alias="hub.challenge")) -> Response:
-    expected = get_settings().whatsapp_verify_token
-    if mode == "subscribe" and expected and token == expected:
-        return Response(challenge, media_type="text/plain")
-    raise HTTPException(403, "verification failed")
-
-
-@router.post("/webhooks/whatsapp")
-async def receive(request: Request, x_hub_signature_256: str | None = Header(None)) -> dict[str, str]:
+@router.post("/webhooks/evolution")
+async def receive(request: Request, x_omnidata_secret: str | None = Header(None)) -> dict[str, str]:
+    if not verify_evolution_secret(get_settings().evolution_webhook_secret, x_omnidata_secret):
+        raise HTTPException(401, "bad secret")
     raw = await request.body()
-    if not verify_signature(get_settings().whatsapp_app_secret, raw, x_hub_signature_256):
-        raise HTTPException(401, "bad signature")
     try:
         payload = json.loads(raw)
     except json.JSONDecodeError as exc:

@@ -54,7 +54,7 @@ class BodyGuardMiddleware:
                 await _reply(send, *bad)          # answered without reading a single byte of the body
                 return
             limit = settings.dataset_max_bytes + MULTIPART_OVERHEAD
-        elif path == "/webhooks/whatsapp":
+        elif path == "/webhooks/evolution":
             limit = settings.webhook_max_bytes
         if limit is None:
             await self.app(scope, receive, send)

@@ -4,7 +4,7 @@ Purpose: WhatsApp sales assistant on a HubSpot-fed Postgres store. Source of tru
 ## Layout
 - `src/omnidata/` Python backend (M0: ingestion, audit, seed, backup). `supabase/migrations/` forward-only SQL.
 - Harness (ADR 0003): `agents/team.py` (roster + tool allowlists = source of truth; `omnidata team export > web/src/lib/team.json`), `agents/orion.py` (plan validation).
-- Bot (M1): `bot/` (orchestrator, actions, repo, gateway, webhook), `llm/` (chat: anthropic|openai|deepseek (OpenAI-compatible, own key/URL/models; audio keeps OPENAI_API_KEY); `fallback.py`: FallbackLlmClient tries OpenRouter after the primary errors, never before, never on a rejected plan — wired in `jobs/worker.build_llm`; `transcribe.py`: OpenAI speech-to-text, ADR 0004; no Azure), `alerts/`, `api/`, `jobs/worker.py`; gold/serving are SQL views (ADR 0002).
+- Bot (M1): `bot/` (orchestrator, actions, repo, `gateway.py` = MessagingGateway Protocol only, `evolution.py` = Evolution API impl + instance lifecycle (ADR 0008), webhook), `llm/` (chat: anthropic|openai|deepseek (OpenAI-compatible, own key/URL/models; audio keeps OPENAI_API_KEY); `fallback.py`: FallbackLlmClient tries OpenRouter after the primary errors, never before, never on a rejected plan — wired in `jobs/worker.build_llm`; `transcribe.py`: OpenAI speech-to-text, ADR 0004; no Azure), `alerts/`, `api/`, `jobs/worker.py`; gold/serving are SQL views (ADR 0002).
 - Data in: `datasets/` (CSV/XLSX upload, one canonical importer, ADR 0005), `integrations/airbyte/` (Airbyte landing + generic mapping, ADR 0006), `api/datasets.py`. Regenerate the web spec: `omnidata dataset spec > web/src/lib/dataset-spec.json`.
 - Insights: `insights/` (spec + compute, puro e determinístico; `omnidata insights spec > web/src/lib/insights-spec.json`), views `serving.v_deal_facts|v_deal_notes` (0009), 7 tools `get_pains…get_insight_digest`; port TS em `web/src/lib/insights.ts` (mesmo spec).
 - Routing without LLM is `bot/routing.py` (pure; used by the orchestrator AND `evals/planner.py`); keyword rules in `bot/router.py`. Writes never fall back to a read.
@@ -20,6 +20,7 @@ Purpose: WhatsApp sales assistant on a HubSpot-fed Postgres store. Source of tru
 - omnidata dataset import|template|spec | omnidata airbyte connections|sync|ingest|generic
 - omnidata insights spec|analyze <file> | omnidata hygiene spec|analyze <file>
 - omnidata forecast analyze <file> [--quota N --realized N]
+- omnidata evolution create-instance|qrcode|status|set-webhook|list-instances|delete-instance (ADR 0008)
 - omnidata eval planner [--mode keyword|llm] [--cases f.yaml]   # planner golden set (src/omnidata/evals); keyword rules must not be tuned on planner_holdout.yaml
 - omnidata db backup | omnidata db size-report
 - Tests need Postgres: `TEST_DATABASE_URL=postgresql://postgres@127.0.0.1:54399/omnidata_test` (DB tests skip if unreachable)

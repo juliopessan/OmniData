@@ -19,7 +19,7 @@ Número na tela vem do SQL, nunca do modelo. É a primeira fatia de uma visão 3
 | Front-end (landing, funcionalidades, preços, login, cadastro, dashboard) | Pronto, no ar na Vercel |
 | Banco, migrations, views `gold`/`serving`, backup | Pronto e testado contra Postgres real |
 | Ingestão do HubSpot (backfill retomável, incremental, histórico, snapshots, `audit`) | Pronto; **testado só com fixtures e HubSpot simulado** |
-| Bot no WhatsApp (webhook, fila, orquestrador, escritas com recibo/Desfazer, alertas, resumo matinal) | Pronto; **testado só com simulação** |
+| Bot no WhatsApp (webhook, fila, orquestrador, escritas com recibo/Desfazer, alertas, resumo matinal), via Evolution API (ADR 0008) | Pronto no código; **nunca rodou contra uma instância real** — payload do webhook não confirmado (OPEN-8), veja docs/go-live.md §2 |
 | Observatório (Orion planeja, especialistas executam) | Pronto. Avaliação do planejador: conjunto de 68 frases + 17 inéditas (`omnidata eval planner`); **o modo com LLM ainda não foi medido** (precisa de chave) e faltam frases reais do WhatsApp |
 | Áudios do WhatsApp (transcrição) | Pronto; **ainda não rodou na API real da OpenAI** |
 | Upload de datasets (CSV/XLSX de negócios e metas): página, API e CLI | Pronto; testado com uma exportação real do HubSpot (1000 negócios) e no navegador |
@@ -42,6 +42,16 @@ Nada acima foi exercitado contra HubSpot, Meta ou LLM reais: veja **[docs/go-liv
 | **Polaris** | Coach de Qualidade: transforma a auditoria em fila de correção por vendedor (só lê; a Lyra grava) | `get_fix_queue` |
 
 O LLM só *propõe* o plano; o código valida (allowlist por especialista, no máximo 1 escrita e por último). Endereçamento direto: “Vega, como estou na meta?”. `uv run omnidata team` lista a equipe; `team export` gera `web/src/lib/team.json` (um teste garante a sincronia).
+
+**WhatsApp (Evolution API, ADR 0008):** o gateway é a [Evolution API](https://docs.evolutionfoundation.com.br), auto-hospedada, sobre o protocolo do WhatsApp Web (Baileys) — não é a API oficial da Meta, então não exige verificação de negócio nem aprovação de template, mas carrega o risco de não ser um canal sancionado pelo WhatsApp. Ligar o número:
+
+```bash
+omnidata evolution create-instance --name omnidata --webhook-url https://<sua-api>/webhooks/evolution   # salva um QR code
+# abra o arquivo salvo e escaneie com o WhatsApp do número que vai rodar o bot (Config. → Aparelhos conectados)
+omnidata evolution status --name omnidata   # repita até aparecer "open"
+```
+
+Depois, `EVOLUTION_INSTANCE=omnidata` no `.env`. Sem assinatura nativa de webhook (diferente do Meta): `EVOLUTION_WEBHOOK_SECRET` é um valor que você inventa e a Evolution devolve como cabeçalho a cada chamada, conferido em tempo constante. Botões e listas viram texto numerado (a UI nativa do Baileys não é confiável nos aparelhos reais). **Nunca rodou contra uma instância real:** o formato exato do payload do webhook não está confirmado (a documentação pública se contradiz entre páginas); mande uma mensagem de teste e confira contra `bot/webhook.py` antes de confiar (docs/go-live.md §2).
 
 **Áudios do WhatsApp:** transcritos com `gpt-transcribe` (OpenAI, US$ 0,0045/min; fallback `gpt-4o-mini-transcribe`), decodificados para WAV via ffmpeg, com limite de 180 s e orçamento diário por usuário. O bot mostra “Entendi: …” antes de responder, e escritas de risco continuam pedindo confirmação. Sem Azure no projeto (ADR 0004). Para escolher o modelo com seus áudios: `scripts/bench_transcribe.py`.
 
@@ -168,7 +178,7 @@ uv run omnidata insights analyze negocios.csv                             # insi
 |---|---|---|
 | `DATABASE_URL`, `DATABASE_URL_DIRECT` | Postgres | sim (caminho B) |
 | `HUBSPOT_ACCESS_TOKEN` | leitura/escrita no HubSpot | só com HubSpot real |
-| `WHATSAPP_*` | Meta Cloud API (token, app secret, verify token) | só com WhatsApp real |
+| `EVOLUTION_API_URL`, `EVOLUTION_API_KEY`, `EVOLUTION_INSTANCE`, `EVOLUTION_WEBHOOK_SECRET` | WhatsApp via Evolution API (ADR 0008) | só com WhatsApp real |
 | `LLM_PROVIDER`, `ANTHROPIC_API_KEY` / `OPENAI_API_KEY` / `DEEPSEEK_API_KEY` | planejamento e narração; `OPENAI_API_KEY` também transcreve áudios | opcional (sem elas: modo degradado) |
 | `OPENROUTER_API_KEY`, `OPENROUTER_MODEL_ROUTER`, `OPENROUTER_MODEL_NARRATOR` | fallback: usado se o `LLM_PROVIDER` falhar (ou sozinho, sem um principal) | opcional |
 | `ADMIN_API_TOKEN`, `CORS_ORIGINS` | upload de datasets pela API | só para usar a página Datasets contra a API |
