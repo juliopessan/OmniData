@@ -21,3 +21,9 @@ Onboarding is faster (scan a QR code instead of Meta Business verification + tem
 - the exact `MESSAGES_UPSERT` payload field names (no example payload is published; `bot/webhook.py`'s parser is defensive and stores nothing it cannot positively identify, rather than guessing and silently storing the wrong thing).
 
 Before real traffic: send one real text and one real audio message through the connected instance and diff the actual webhook payload against `message_kind()` in `bot/webhook.py`, the same discipline `omnidata audit properties` applies to HubSpot field names (CLAUDE.md rule 2) and ADR 0006 applied to Airbyte ("never ran against a real Airbyte — run a test sync before trusting"). `download_media` (voice notes) carries the same caveat and fails as a clean, already-tested `GatewayError` ("não consegui entender o áudio") rather than crashing if the endpoint guess is wrong.
+
+### Verified against the user's real instance (2026-09-22)
+- `fetch_instances` and `connection_state` — confirmed: request/response shapes match `EvolutionAdminClient` exactly, no code change needed.
+- `qrcode` — confirmed: response keys are exactly `pairingCode, code, base64, count` as documented; the saved PNG scanned successfully and the instance reached `state: "open"`.
+- API base URL is the host root, **not** the `/manager/` path shown in the Evolution Manager UI (that path is the web UI only; the REST API sits at `/`).
+- `send_text` and the real `MESSAGES_UPSERT` payload remain unverified (no message sent or received through the connected instance yet).

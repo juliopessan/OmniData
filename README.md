@@ -19,7 +19,7 @@ Número na tela vem do SQL, nunca do modelo. É a primeira fatia de uma visão 3
 | Front-end (landing, funcionalidades, preços, login, cadastro, dashboard) | Pronto, no ar na Vercel |
 | Banco, migrations, views `gold`/`serving`, backup | Pronto e testado contra Postgres real |
 | Ingestão do HubSpot (backfill retomável, incremental, histórico, snapshots, `audit`) | Pronto; **testado só com fixtures e HubSpot simulado** |
-| Bot no WhatsApp (webhook, fila, orquestrador, escritas com recibo/Desfazer, alertas, resumo matinal), via Evolution API (ADR 0008) | Pronto no código; **nunca rodou contra uma instância real** — payload do webhook não confirmado (OPEN-8), veja docs/go-live.md §2 |
+| Bot no WhatsApp (webhook, fila, orquestrador, escritas com recibo/Desfazer, alertas, resumo matinal), via Evolution API (ADR 0008) | Instância real criada, conectada (QR escaneado) e endpoints de admin confirmados; **envio e o payload real do webhook ainda não testados** (OPEN-8), veja docs/go-live.md §2 |
 | Observatório (Orion planeja, especialistas executam) | Pronto. Avaliação do planejador: conjunto de 68 frases + 17 inéditas (`omnidata eval planner`); **o modo com LLM ainda não foi medido** (precisa de chave) e faltam frases reais do WhatsApp |
 | Áudios do WhatsApp (transcrição) | Pronto; **ainda não rodou na API real da OpenAI** |
 | Upload de datasets (CSV/XLSX de negócios e metas): página, API e CLI | Pronto; testado com uma exportação real do HubSpot (1000 negócios) e no navegador |
