@@ -1,6 +1,6 @@
 # Go-live runbook — what only an account owner can do
 
-Code is done and tested against mocks. **Nothing below has been exercised against the real services.** Do these in order.
+Code is done and tested against mocks. §2 (WhatsApp) has been exercised against real services and is in production; the rest has not. Do these in order.
 
 ## 1. HubSpot (OPEN-1)
 1. Create a **private app**. Scopes (least privilege): `crm.objects.deals.read/write`, `crm.objects.contacts.read`, `crm.objects.companies.read`,
@@ -9,7 +9,7 @@ Code is done and tested against mocks. **Nothing below has been exercised agains
 3. Verify association type ids in `crm/hubspot/writeback.py` (note→deal 214, task→deal 216) with one manual note creation.
 4. `omnidata ingest backfill --months 24` then `omnidata audit` (go/no-go per use case).
 
-## 2. WhatsApp via Evolution API (OPEN-5, OPEN-8, OPEN-9, ADR 0008)
+## 2. WhatsApp via Evolution API (OPEN-9, ADR 0008) — done, verified in production 2026-09-23
 No Meta Business verification, no template approval: this is the WhatsApp Web protocol (Baileys), self-hosted, not the
 official Cloud API. That trade means less friction to get connected, but it is not Meta's sanctioned integration path —
 review the risk in ADR 0008 before using a number that matters.
@@ -19,12 +19,16 @@ review the risk in ADR 0008 before using a number that matters.
 2. `omnidata evolution create-instance --name omnidata --webhook-url https://<api-host>/webhooks/evolution` saves a QR
    code (default `evolution-qrcode.png`) — open it and scan with WhatsApp on the number that will run the bot (Settings
    → Linked Devices → Link a Device). Poll `omnidata evolution status --name omnidata` until it prints `open`.
-3. Put that instance name in `EVOLUTION_INSTANCE`.
+3. Put that instance name in `EVOLUTION_INSTANCE`. Host the API somewhere with a real domain — [docs/deploy-vps.md](docs/deploy-vps.md)
+   is the exact recipe used for the production deploy (a VPS that already runs Traefik + a shared Postgres).
 4. Invite a test user: `omnidata user invite --phone +55... --owner <hs_owner_id> --name Ana`; reply **Aceito** on WhatsApp.
-5. Before trusting it with real conversations: send yourself one real text and one real audio message and confirm both
-   land in `app.wa_message`, and check the exact webhook payload your instance actually sends against
-   `bot/webhook.py`'s parser (OPEN-8: the field names there come from public docs that disagree with themselves across
-   pages/versions, never from a real payload).
+
+**Verified end to end (real WhatsApp instance, production VPS, real DeepSeek calls, 0 errors across 10 messages):**
+registration, activation, and Vega/Lyra/Altair/Argus each answering a real question with real (synthetic-seed) data.
+The docs' contradictions turned out to matter in one place: `POST /webhook/set/{instance}` rejects the flat body some
+pages show — it must nest under `{"webhook": {...}}` (fixed in `EvolutionAdminClient.set_webhook`). Still unverified:
+audio (voice notes), group messages, button/list replies, and any write action (`add_note`/`create_task`/confirmation)
+— send yourself one of each and check `app.wa_message`/`app.agent_step` before trusting them.
 
 ## 3. LLM and voice notes (OPEN-7, ADR 0004)
 - Chat: `LLM_PROVIDER=anthropic` + `ANTHROPIC_API_KEY` (default), or `openai` + `OPENAI_API_KEY`, `OPENAI_MODEL_ROUTER`, `OPENAI_MODEL_NARRATOR`.

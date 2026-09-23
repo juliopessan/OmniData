@@ -1,0 +1,20 @@
+# Overlay for hosts that already run Traefik with the Docker provider (e.g. a Hostinger VPS app stack).
+# Usage: docker compose -f docker-compose.yml -f docker-compose.traefik.yml up -d --build
+# Set API_DOMAIN and, if Postgres lives in another compose project on the same host, POSTGRES_NETWORK in .env.
+services:
+  api:
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.omnidata.rule: "Host(`${API_DOMAIN}`)"
+      traefik.http.routers.omnidata.entrypoints: "websecure"
+      traefik.http.routers.omnidata.tls.certresolver: "letsencrypt"
+      traefik.http.services.omnidata.loadbalancer.server.port: "8000"
+    networks: [default, external_postgres]
+  worker:
+    networks: [default, external_postgres]
+
+networks:
+  default: {}
+  external_postgres:
+    external: true
+    name: ${POSTGRES_NETWORK}
