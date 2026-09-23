@@ -51,7 +51,9 @@ omnidata evolution create-instance --name omnidata --webhook-url https://<sua-ap
 omnidata evolution status --name omnidata   # repita até aparecer "open"
 ```
 
-Depois, `EVOLUTION_INSTANCE=omnidata` no `.env`. Sem assinatura nativa de webhook (diferente do Meta): `EVOLUTION_WEBHOOK_SECRET` é um valor que você inventa e a Evolution devolve como cabeçalho a cada chamada, conferido em tempo constante. Botões e listas viram texto numerado (a UI nativa do Baileys não é confiável nos aparelhos reais). **Nunca rodou contra uma instância real:** o formato exato do payload do webhook não está confirmado (a documentação pública se contradiz entre páginas); mande uma mensagem de teste e confira contra `bot/webhook.py` antes de confiar (docs/go-live.md §2).
+Depois, `EVOLUTION_INSTANCE=omnidata` no `.env`. Sem assinatura nativa de webhook (diferente do Meta): `EVOLUTION_WEBHOOK_SECRET` é um valor que você inventa e a Evolution devolve como cabeçalho a cada chamada, conferido em tempo constante. Botões e listas viram texto numerado (a UI nativa do Baileys não é confiável nos aparelhos reais).
+
+**Testado de ponta a ponta em 22/09/2026** contra uma instância real (API local + túnel ngrok): QR escaneado, uma mensagem de texto real recebida com o payload batendo exatamente com o que o código esperava, o Orion recusou corretamente o número não cadastrado e a resposta saiu pela Evolution sem erro. Um ponto da documentação pública estava errado e foi corrigido: `set_webhook` precisa do corpo aninhado em `{"webhook": {...}}`, não plano. Ainda faltam confirmar: uma conversa completa com número cadastrado (chamando ferramentas de verdade) e áudio (transcrição).
 
 **Áudios do WhatsApp:** transcritos com `gpt-transcribe` (OpenAI, US$ 0,0045/min; fallback `gpt-4o-mini-transcribe`), decodificados para WAV via ffmpeg, com limite de 180 s e orçamento diário por usuário. O bot mostra “Entendi: …” antes de responder, e escritas de risco continuam pedindo confirmação. Sem Azure no projeto (ADR 0004). Para escolher o modelo com seus áudios: `scripts/bench_transcribe.py`.
 

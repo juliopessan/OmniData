@@ -53,6 +53,20 @@ def test_fetch_instances_accepts_either_a_bare_array_or_a_wrapped_object():
     assert asyncio.run(wrapped.fetch_instances()) == [{"name": "b"}]
 
 
+def test_set_webhook_wraps_the_body_under_a_webhook_key():
+    """Confirmed against a real instance 2026-09-22: the flat shape some docs show is rejected with a 400
+    ('instance requires property "webhook"') — the body must nest under "webhook"."""
+    seen = {}
+
+    def h(req: httpx.Request) -> httpx.Response:
+        seen["body"] = json.loads(req.content)
+        return httpx.Response(200, json={})
+    c = EvolutionAdminClient("https://e", "K", httpx.MockTransport(h))
+    asyncio.run(c.set_webhook("omnidata", "https://api.example.com/webhooks/evolution", "s3cret"))
+    assert seen["body"] == {"webhook": {"enabled": True, "url": "https://api.example.com/webhooks/evolution",
+                                        "events": ["MESSAGES_UPSERT"], "headers": {"X-OmniData-Secret": "s3cret"}}}
+
+
 def test_delete_instance_and_error_propagation():
     import pytest
 

@@ -75,8 +75,10 @@ class EvolutionAdminClient:
         return str(_as_dict(d.get("instance")).get("state", "close"))
 
     async def set_webhook(self, name: str, url: str, secret: str) -> None:
+        """Confirmed 2026-09-22 against a real instance: the body must be wrapped under "webhook" — the flat shape
+        some doc pages show ({"enabled": ..., "url": ...} at the top level) is rejected with a 400."""
         await self._req("POST", f"/webhook/set/{name}",
-                        {"enabled": True, "url": url, "events": ["MESSAGES_UPSERT"], "headers": {"X-OmniData-Secret": secret}})
+                        {"webhook": {"enabled": True, "url": url, "events": ["MESSAGES_UPSERT"], "headers": {"X-OmniData-Secret": secret}}})
 
     async def delete_instance(self, name: str) -> None:
         await self._req("DELETE", f"/instance/delete/{name}")
