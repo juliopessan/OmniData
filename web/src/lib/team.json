@@ -75,15 +75,17 @@
       "key": "aurora",
       "name": "Aurora",
       "title": "Rotina e Alertas",
-      "tagline": "Abre o seu dia com o que importa, traz o insight do dia e avisa só quando vale a pena, sem virar spam.",
+      "tagline": "Abre o seu dia com o que importa, traz o insight do dia e avisa só quando vale a pena, sem virar spam. Também guarda sua meta pessoal (negócios a fechar ou % de atingimento, com prazo) e acompanha o progresso dela todo dia.",
       "persona": "Animada sem exagero. Começa o dia com foco no que é prioridade.",
       "tools": [
         "get_morning_brief",
-        "get_insight_digest"
+        "get_insight_digest",
+        "set_goal",
+        "get_goal_status"
       ],
       "examples": [
         "meu dia",
-        "Aurora, qual o insight do dia?"
+        "quero fechar 3 negócios até sexta"
       ]
     },
     {

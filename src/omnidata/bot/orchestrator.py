@@ -7,7 +7,7 @@ import json
 import logging
 import uuid
 from dataclasses import dataclass
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 from typing import Any
 
 import psycopg
@@ -449,6 +449,8 @@ async def _run_tool_raw(conn: Conn, deps: Deps, p: Principal, tool: str | None, 
     if tool == "search_meeting_notes":
         data, template = _search_meetings(conn, deps, p, a)
         return Reply(await _narrate(conn, deps, p, data, template, T.agent_for_tool(tool), original_text))
+    if tool == "set_goal":  # local write, no HubSpot involved — must run before the `deps.writer` gate below
+        return _set_goal(conn, p, a)
     if tool in catalog.READ_TOOLS:
         data, template = _read(conn, p, tool, a, today)
         if data is None:
@@ -478,8 +480,10 @@ def _read(conn: Conn, p: Principal, tool: str, a: dict[str, Any], today: date): 
         return repo.deals_needing_action(conn, p, a["limit"]), S.tpl_attention
     if tool == "get_morning_brief":
         d = {"name": p.display_name, "quota": repo.quota_status(conn, p, repo.month_start(today)),
-             "attention": repo.deals_needing_action(conn, p, 5)}
+             "attention": repo.deals_needing_action(conn, p, 5), "goal": repo.goal_status(conn, p, today)}
         return d, S.tpl_brief
+    if tool == "get_goal_status":
+        return repo.goal_status(conn, p, today), S.tpl_goal_status
     if tool == "get_data_quality":
         return repo.data_quality(conn, p), S.tpl_quality
     if tool == "get_forecast":
@@ -553,6 +557,17 @@ def _search_meetings(conn: Conn, deps: Deps, p: Principal, a: dict[str, Any]) ->
     return {"items": items}, S.tpl_meetings
 
 
+def _set_goal(conn: Conn, p: Principal, a: dict[str, Any]) -> Reply:
+    """A local write (app.seller_goal), never touches HubSpot — no pending_action/confirmation needed, same treatment as
+    the nickname preference: low-risk, always reversible by just setting a new goal."""
+    today = date.today()
+    deadline = today + timedelta(days=int(a["deadline_in_days"]))
+    with conn.cursor() as cur:
+        cur.execute("update app.seller_goal set status='expired' where user_id=%s and status='active'", (p.user_id,))
+        cur.execute("insert into app.seller_goal (user_id, hs_owner_id, goal_type, target, deadline) values (%s,%s,%s,%s,%s)",
+                    (p.user_id, p.hs_owner_id, a["goal_type"], a["target"], deadline))
+    conn.commit()
+    return Reply(S.GOAL_SET.format(desc=S.goal_desc(a["goal_type"], a["target"]), deadline=deadline.strftime("%d/%m")))
 
 
 async def _narrate(conn: Conn, deps: Deps, p: Principal, data: dict[str, Any], template: Any, agent: T.Agent | None = None,

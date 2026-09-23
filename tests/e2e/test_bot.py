@@ -133,6 +133,31 @@ async def test_llm_oos_still_wins_when_keywords_also_find_nothing(world):
     assert out["body"] == f"*Orion*: {S.OUT_OF_SCOPE}"
 
 
+async def test_set_goal_then_get_goal_status_shows_real_progress(world):
+    conn, gw, w, s, _ = world
+    llm = FakeLlm(tool=ToolCall("set_goal", {"goal_type": "deals_won", "target": 2, "deadline_in_days": 5}))
+    out = await say(conn, deps(gw, w, s, llm), REP_A, "quero fechar 2 negócios essa semana")
+    assert out["body"].startswith("*Aurora*: Combinado!") and "fechar 2 negócio(s)" in out["body"]
+
+    llm2 = FakeLlm(tool=ToolCall("get_goal_status", {}))
+    out2 = await say(conn, deps(gw, w, s, llm2), REP_A, "como está minha meta pessoal?")
+    assert out2["body"].startswith("*Aurora*: Sua meta pessoal (fechar 2 negócio(s)): 0 até agora,")
+
+
+async def test_morning_brief_includes_the_goal_line_only_when_active(world):
+    conn, gw, w, s, ids = world
+    llm = FakeLlm(tool=ToolCall("get_morning_brief", {}))
+    out = await say(conn, deps(gw, w, s, llm), REP_A, "bom dia")
+    assert "meta pessoal" not in out["body"]
+
+    with conn.cursor() as cur:
+        cur.execute("insert into app.seller_goal (user_id, hs_owner_id, goal_type, target, deadline) values (%s,'9000','deals_won',2,%s)",
+                    (ids["a"], datetime.now(UTC).date()))
+    conn.commit()
+    out2 = await say(conn, deps(gw, w, s, llm), REP_A, "bom dia")
+    assert "meta pessoal" in out2["body"]
+
+
 async def test_nova_can_also_search_meeting_notes_and_gets_signed_correctly(world):
     # search_meeting_notes now has two legal owners (nova, atlas) — the reply must credit whichever Orion actually
     # planned, not always default to atlas (a real gap: _run_tool used to derive the signer from a global 1:1 map)

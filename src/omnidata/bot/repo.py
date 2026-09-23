@@ -80,6 +80,28 @@ def team_status(conn: Conn, p: Principal, period_start: date) -> dict[str, Any]:
     return {"period": period_start.isoformat(), "reps": reps}
 
 
+def goal_status(conn: Conn, p: Principal, today: date) -> dict[str, Any]:
+    """Progress on the seller's own active personal goal (Aurora). Scoped to this Principal's own row, not owner_clause()
+    — a personal goal is never a team view, even for a manager."""
+    with conn.cursor() as cur:
+        cur.execute("select goal_type, target, deadline, created_at from serving.v_seller_goal "
+                    "where user_id=%s and status='active' order by created_at desc limit 1", (p.user_id,))
+        g = cur.fetchone()
+    if not g:
+        return {"active": False}
+    target = float(g["target"])
+    if g["goal_type"] == "deals_won":
+        with conn.cursor() as cur:
+            cur.execute("select count(*) n from silver.deal where hs_owner_id=%s and is_won and closed_at >= %s",
+                        (p.hs_owner_id, g["created_at"]))
+            progress = float(cur.fetchone()["n"])
+    else:
+        q = quota_status(conn, p, month_start(today))
+        progress = round((q["attainment"] or 0) * 100, 1)
+    return {"active": True, "goal_type": g["goal_type"], "target": target, "progress": progress,
+            "deadline": g["deadline"].isoformat(), "done": progress >= target}
+
+
 def pipeline_summary(conn: Conn, p: Principal) -> dict[str, Any]:
     clause, params = p.owner_clause()
     with conn.cursor() as cur:

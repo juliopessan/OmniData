@@ -120,9 +120,35 @@ def tpl_attention(d: dict[str, Any]) -> str:
     return "Negócios que pedem ação:\n" + "\n".join(lines)
 
 
+def goal_desc(goal_type: str, target: float) -> str:
+    return f"fechar {target:.0f} negócio(s)" if goal_type == "deals_won" else f"chegar a {pct(target / 100, 0)} de atingimento"
+
+
+GOAL_SET = "Combinado! Vou acompanhar: {desc}, até {deadline}. Pergunte “como está minha meta pessoal?” quando quiser ver o progresso."
+
+
+def _goal_line(d: dict[str, Any]) -> str | None:
+    if not d.get("active"):
+        return None
+    desc = goal_desc(d["goal_type"], d["target"])
+    now = f"{d['progress']:.0f}" if d["goal_type"] == "deals_won" else pct(d["progress"] / 100, 0)
+    tag = "🎯 batida!" if d.get("done") else f"até {d['deadline'][8:10]}/{d['deadline'][5:7]}"
+    return f"Sua meta pessoal ({desc}): {now} até agora, {tag}."
+
+
+def tpl_goal_status(d: dict[str, Any]) -> str:
+    line = _goal_line(d)
+    return line or "Você não tem uma meta pessoal ativa. Diga algo como “quero fechar 3 negócios até sexta” pra eu acompanhar."
+
+
 def tpl_brief(d: dict[str, Any]) -> str:
     head = f"Bom dia{', ' + d['name'] if d.get('name') else ''}! "
-    return head + tpl_quota(d["quota"]) + "\n\n" + tpl_attention(d["attention"])
+    parts = [head + tpl_quota(d["quota"])]
+    goal_line = _goal_line(d.get("goal") or {})
+    if goal_line:
+        parts.append(goal_line)
+    parts.append(tpl_attention(d["attention"]))
+    return "\n\n".join(parts)
 
 
 def tpl_deal(d: dict[str, Any]) -> str:

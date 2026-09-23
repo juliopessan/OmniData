@@ -81,6 +81,8 @@
 # ---------- status do time p/ gestores (Vega) ----------
 - {id: gestao-01, tag: gestao, text: "quem está mais atrás na meta no time?", plan: [vega.get_team_status]}
 - {id: gestao-02, tag: gestao, text: "qual a prioridade de 1:1 essa semana?", plan: [vega.get_team_status]}
+# ---------- meta pessoal (Aurora) ----------
+- {id: goal-01, tag: goal, text: "como está minha meta pessoal?", plan: [aurora.get_goal_status]}
 # ---------- memória de reuniões (Atlas) ----------
 - {id: atlas-01, tag: atlas, text: "o que ficou combinado na reunião com a Fast Shop?", plan: [atlas.search_meeting_notes]}
 - {id: atlas-02, tag: atlas, text: "o que o cliente falou sobre o preço na última call?", plan: [atlas.search_meeting_notes]}

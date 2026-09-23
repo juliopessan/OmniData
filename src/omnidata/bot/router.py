@@ -17,6 +17,7 @@ _RULES: list[tuple[str, re.Pattern[str]]] = [
     ("get_systems_landscape", re.compile(r"\b(erps?|sistemas?|totvs|sap|oracle|sankhya|protheus|concorrentes?)\b")),
     ("get_segment_insights", re.compile(r"\b(segmentos?|campanhas?|nichos?|motivos? de perda|por que perd\w+)\b")),
     ("get_team_status", re.compile(r"\b(time inteiro|equipe toda|status do time|status da equipe|quem esta (mais )?atras|ranking do time|prioridade de 1:1|prioridade de 1 a 1)\b")),
+    ("get_goal_status", re.compile(r"\b(meta pessoal|meu objetivo)\b")),
     ("get_quota_status", re.compile(r"\b(metas?|quotas?|atingimento|falta quanto|quanto falta)\b")),
     ("get_data_quality", re.compile(r"\b(qualidade|confiavel|confiar|meus dados|amostra)\b")),
     ("get_kpis", re.compile(r"\b(numeros?|kpis?|win ?rate|conversao|taxa de ganho|meus? resultados?)\b")),

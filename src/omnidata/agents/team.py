@@ -49,10 +49,11 @@ LYRA = Agent(
 )
 AURORA = Agent(
     "aurora", "Aurora", "Rotina e Alertas",
-    "Abre o seu dia com o que importa, traz o insight do dia e avisa só quando vale a pena, sem virar spam.",
+    "Abre o seu dia com o que importa, traz o insight do dia e avisa só quando vale a pena, sem virar spam. Também guarda "
+    "sua meta pessoal (negócios a fechar ou % de atingimento, com prazo) e acompanha o progresso dela todo dia.",
     "Animada sem exagero. Começa o dia com foco no que é prioridade.",
-    ("get_morning_brief", "get_insight_digest"),
-    ("meu dia", "Aurora, qual o insight do dia?"),
+    ("get_morning_brief", "get_insight_digest", "set_goal", "get_goal_status"),
+    ("meu dia", "quero fechar 3 negócios até sexta"),
 )
 ARGUS = Agent(
     "argus", "Argus", "Auditor de Confiança",
@@ -91,7 +92,7 @@ ATLAS = Agent(
 TEAM: dict[str, Agent] = {a.key: a for a in (ORION, VEGA, ALTAIR, LYRA, AURORA, ARGUS, POLARIS, NOVA, ATLAS)}
 SPECIALISTS: dict[str, Agent] = {k: a for k, a in TEAM.items() if a.tools}
 TOOL_OWNER: dict[str, str] = {t: a.key for a in SPECIALISTS.values() for t in a.tools}
-WRITE_TOOLS = frozenset({"add_note", "create_task", "propose_deal_update", "undo_last"})
+WRITE_TOOLS = frozenset({"add_note", "create_task", "propose_deal_update", "undo_last", "set_goal"})
 MAX_STEPS = 3
 
 
