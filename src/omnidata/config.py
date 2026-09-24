@@ -67,6 +67,9 @@ class Settings(BaseSettings):
     chroma_collection: str = "meeting_transcripts"
     embeddings_model: str = "text-embedding-3-small"  # OpenAI; reuses OPENAI_API_KEY (already set for transcription)
     typing_delay_max_seconds: float = 0.0  # 0 = disabled (tests + default); budget for the "digitando..." pulses (bot/orchestrator.py::_typing_pulses) before replying
+    langfuse_public_key: str = ""      # observability (telemetry.py): all three empty = tracing off, same degrade-to-none pattern as every other optional integration
+    langfuse_secret_key: str = ""
+    langfuse_base_url: str = ""        # self-hosted or regional Langfuse Cloud URL, e.g. https://cloud.langfuse.com
 
     @property
     def direct_url(self) -> str:

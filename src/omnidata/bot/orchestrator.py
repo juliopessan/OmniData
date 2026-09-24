@@ -14,6 +14,7 @@ from zoneinfo import ZoneInfo
 import psycopg
 from psycopg.types.json import Jsonb
 
+from .. import telemetry
 from ..agents import team as T
 from ..agents.orion import ORION_SYSTEM, Step, plan_schema, single_step, validate_plan
 from ..config import Settings
@@ -170,32 +171,42 @@ async def handle(conn: Conn, deps: Deps, msg: dict[str, Any]) -> None:
     if p is None:
         await _onboarding_or_refuse(conn, deps, phone, body)
         return
-    if _rate_limited(conn, phone, deps.settings):
-        await send(conn, deps, phone, p.user_id, Reply(S.RATE_LIMITED))
-        return
-
     kind = msg["kind"]
-    if kind == "text" and sent.classify(body.get("text", "")).acknowledgement:
-        # a bare "valeu"/"obrigado" doesn't need a reply — a reaction reads as human, a menu fallback reads as a bot
-        await deps.gateway.react(phone, str(msg.get("wa_message_id") or ""), "👍")
-        return
-    if kind == "interactive":
-        reply = await _handle_reply_id(conn, deps, p, body["reply_id"])
-    elif kind in ("text", "audio"):
-        text = body.get("text", "")
-        heard = ""
-        if kind == "audio":
-            text, err = await _transcribe(conn, deps, p, body)
-            if err:
-                await send(conn, deps, phone, p.user_id, Reply(err))
+    # one trace per inbound message (a "turn"); session_id groups a seller's whole running thread across turns.
+    # Never the raw phone number (rule 8b, no PII in logs) — user_id/session_id are internal ids, text is pre-masked.
+    trace_input = mask_pii(body.get("text", ""))[:500] if kind in ("text", "audio") else kind
+    with telemetry.observation("span", "handle-message", input=trace_input) as root:
+        with telemetry.trace_attrs(user_id=p.user_id, session_id=p.user_id, tags=["whatsapp", kind]):
+            if _rate_limited(conn, phone, deps.settings):
+                reply = Reply(S.RATE_LIMITED)
+                await send(conn, deps, phone, p.user_id, reply)
+                root.update(output=reply.text)
                 return
-            heard = S.HEARD.format(t=text[:200])  # show what was understood: transcription can be wrong, writes are risky
-        reply = await _handle_text(conn, deps, p, text)
-        if heard:
-            reply.text = f"{heard}\n\n{reply.text}"
-    else:
-        reply = Reply(S.MENU_BODY, list_rows=[(f"menu:{k}", t, d) for k, t, d in S.MENU_ROWS], list_button=S.MENU_TITLE[:20])
-    await send(conn, deps, phone, p.user_id, reply)
+            if kind == "text" and sent.classify(body.get("text", "")).acknowledgement:
+                # a bare "valeu"/"obrigado" doesn't need a reply — a reaction reads as human, a menu fallback reads as a bot
+                await deps.gateway.react(phone, str(msg.get("wa_message_id") or ""), "👍")
+                root.update(output="[reaction: 👍]")
+                return
+            if kind == "interactive":
+                reply = await _handle_reply_id(conn, deps, p, body["reply_id"])
+            elif kind in ("text", "audio"):
+                text = body.get("text", "")
+                heard = ""
+                if kind == "audio":
+                    text, err = await _transcribe(conn, deps, p, body)
+                    if err:
+                        reply = Reply(err)
+                        await send(conn, deps, phone, p.user_id, reply)
+                        root.update(output=reply.text)
+                        return
+                    heard = S.HEARD.format(t=text[:200])  # show what was understood: transcription can be wrong, writes are risky
+                reply = await _handle_text(conn, deps, p, text)
+                if heard:
+                    reply.text = f"{heard}\n\n{reply.text}"
+            else:
+                reply = Reply(S.MENU_BODY, list_rows=[(f"menu:{k}", t, d) for k, t, d in S.MENU_ROWS], list_button=S.MENU_TITLE[:20])
+            await send(conn, deps, phone, p.user_id, reply)
+            root.update(output=reply.text[:2000])
 
 
 async def _transcribe(conn: Conn, deps: Deps, p: Principal, body: dict[str, Any]) -> tuple[str, str | None]:
@@ -211,7 +222,10 @@ async def _transcribe(conn: Conn, deps: Deps, p: Principal, body: dict[str, Any]
         return "", S.AUDIO_BUDGET
     try:
         audio, mime = await deps.gateway.download_media(body["media_id"])
-        t = await deps.transcriber.transcribe(audio, mime)
+        with telemetry.observation("generation", "transcribe-audio", input="[audio]") as gen:
+            t = await deps.transcriber.transcribe(audio, mime)
+            gen.update(model=t.model, output=t.text, cost_details={"total": t.cost_usd},
+                       metadata={"latency_ms": t.latency_ms})
     except TranscribeError as exc:
         audit(conn, p.user_id, "transcribe_failed", {"code": exc.code})
         conn.commit()
@@ -370,7 +384,12 @@ async def _orion(conn: Conn, deps: Deps, p: Principal, text: str) -> Reply:
         try:
             context = _recent_context(conn, p.user_id)
             user_text = f"{context}\n\nPedido atual: {mask_pii(text)}" if context else mask_pii(text)
-            res = await deps.llm.route(ORION_SYSTEM, user_text, [plan_schema()])
+            with telemetry.observation("generation", "route-request", input=user_text) as gen:
+                res = await deps.llm.route(ORION_SYSTEM, user_text, [plan_schema()])
+                gen.update(model=res.usage.model,
+                           output={"tool": res.tool.name if res.tool else None, "args": res.tool.arguments if res.tool else None, "text": res.text},
+                           usage_details={"input": res.usage.input_tokens, "output": res.usage.output_tokens},
+                           metadata={"provider": res.usage.provider, "latency_ms": res.usage.latency_ms})
             _log_llm(conn, p.user_id, "planner", res.usage)
             steps, status = interpret_llm(res, forced)
             if status == "rejected":
@@ -418,7 +437,9 @@ async def run_plan(conn: Conn, deps: Deps, p: Principal, steps: list[Step], orig
     for i, st in enumerate(steps):
         t0 = time.monotonic()
         try:
-            r = await _run_tool(conn, deps, p, st.tool, st.args, original_text, st.agent)
+            with telemetry.observation("tool", st.tool, input=st.args, metadata={"agent": st.agent}) as tool_obs:
+                r = await _run_tool(conn, deps, p, st.tool, st.args, original_text, st.agent)
+                tool_obs.update(output=r.text[:1000])
             status = "ok"
         except Exception:
             conn.rollback()
@@ -616,7 +637,11 @@ async def _narrate(conn: Conn, deps: Deps, p: Principal, data: dict[str, Any], t
                 persona += " O vendedor parece frustrado agora: seja direto, reconheça o problema numa frase curta antes dos números, sem enrolar."
             elif s.urgent:
                 persona += " O vendedor está com pressa: vá direto ao ponto, sem introdução."
-        text, usage = await deps.llm.narrate(prompts.NARRATOR_SYSTEM + persona, payload)
+        with telemetry.observation("generation", "narrate-response", input=payload) as gen:
+            text, usage = await deps.llm.narrate(prompts.NARRATOR_SYSTEM + persona, payload)
+            gen.update(model=usage.model, output=text,
+                       usage_details={"input": usage.input_tokens, "output": usage.output_tokens},
+                       metadata={"provider": usage.provider, "latency_ms": usage.latency_ms, "agent": agent.key if agent else None})
         _log_llm(conn, p.user_id, "narrator", usage)
     except LlmError:
         return fallback

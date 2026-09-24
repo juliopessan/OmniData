@@ -9,6 +9,7 @@ from pathlib import Path
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
+from .. import telemetry
 from ..alerts import engine
 from ..bot import actions
 from ..bot.evolution import EvolutionGateway
@@ -89,6 +90,7 @@ async def _locked(key: int, fn):  # type: ignore[no-untyped-def]
 
 async def run(s: Settings | None = None) -> None:
     s = s or get_settings()
+    telemetry.init(s)  # before anything that might create a trace (LlmClient calls happen inside process_next)
     gw = EvolutionGateway(s.evolution_api_url, s.evolution_api_key, s.evolution_instance)
     hs = HubSpotClient(s.hubspot_access_token, rps=s.hubspot_rps, search_rps=s.hubspot_search_rps) if s.hubspot_access_token else None
     deps = Deps(gateway=gw, writer=HubSpotWriter(hs) if hs else None, llm=build_llm(s), settings=s, transcriber=build_transcriber(s),
@@ -141,7 +143,8 @@ async def run(s: Settings | None = None) -> None:
     sched.add_job(snapshot, "cron", day_of_week="mon", hour=2)
     sched.add_job(nightly_backup, "cron", hour=3)
     sched.start()
-    log.info("worker started (llm=%s, hubspot=%s)", "on" if deps.llm else "degraded", "on" if hs else "off")
+    log.info("worker started (llm=%s, hubspot=%s, tracing=%s)", "on" if deps.llm else "degraded",
+              "on" if hs else "off", "on" if telemetry.enabled() else "off")
 
     with connect() as conn:
         while True:
