@@ -4,13 +4,40 @@
 
 <p align="center"><img src="docs/assets/hero.png" alt="Landing do OmniData: o hero com os números do time calculados a partir de dados sintéticos" width="900"></p>
 
-O OmniData leva a inteligência do HubSpot para o WhatsApp do vendedor. Quem cuida dele é o **Observatório**, uma equipe de sete assessores de IA
-(Orion, Vega, Altair, Lyra, Aurora, Argus e Polaris): o Orion lê o pedido e divide o trabalho, e cada especialista responde assinando a própria parte.
-Número na tela vem do SQL, nunca do modelo. É a primeira fatia de uma visão 360° do cliente.
-
 **Demo do site:** https://omnidata-web-eta.vercel.app (dados sintéticos; login e cadastro são só demonstração).
 
 <sub>Screenshot gerado por `scripts/screenshot-hero.sh` (Chrome headless sobre o build de produção). Os números do hero são calculados de dados sintéticos.</sub>
+
+## O problema
+
+O vendedor não esquece de atualizar o CRM por preguiça. Ele esquece porque o caminho até lá é longo: abrir o HubSpot, achar o negócio certo, lembrar o que foi dito na ligação de duas horas atrás. Então ele atualiza na sexta à noite, se lembrar — e o negócio que esfriou na terça só aparece pro gestor no fim do trimestre, quando já não dá mais pra fazer nada.
+
+O forecast vira uma discussão de números que ninguém consegue defender, porque ninguém sabe se vieram de um SQL ou de um chute do modelo. A amostra às vezes é pequena demais pra comparar vendedor com vendedor, e mesmo assim vira ranking. E o gestor, que devia acompanhar como o time está conduzindo as conversas de venda, não tem outro jeito de ver isso a não ser pedindo pra alguém abrir o celular.
+
+O único lugar onde o vendedor já está, todo dia, sem precisar de treinamento nem lembrete, é o WhatsApp.
+
+## O que o OmniData faz
+
+O OmniData leva a inteligência do HubSpot para dentro dessa conversa. Quem cuida dela é o **Observatório**, uma equipe de nove assessores de IA — Orion coordena, e cada especialista (Vega, Altair, Lyra, Aurora, Argus, Polaris, Nova, Atlas) responde só o que é da própria área, assinando a própria parte.
+
+1. O vendedor manda uma mensagem no WhatsApp — texto ou áudio, pergunta ou "nota na Acme: CFO aprovou o escopo".
+2. Orion lê o pedido, decide quem da equipe resolve (às vezes mais de um especialista, num plano curto) e devolve **uma resposta só**, assinada por quem cuidou de cada parte.
+3. Todo número que aparece vem do SQL, calculado contra o HubSpot real — nunca de uma conta feita pelo modelo. Se o dado não sustenta a pergunta (amostra pequena, cobertura baixa), o Argus avisa em vez de inventar confiança.
+4. Uma escrita no CRM (nota, tarefa, mudança de etapa) sempre pede confirmação antes de gravar, e pode ser desfeita em até 24h.
+5. De manhã, um resumo proativo do que precisa de atenção; às 18h, um recap do que foi feito no dia e sugestão pra manhã seguinte — sem virar spam.
+6. O vendedor define a própria meta ("quero fechar 3 negócios até sexta") e acompanha o progresso dentro da mesma conversa.
+7. Antes de uma reunião difícil, a Nova prepara um script com base no que já foi registrado (motivos de perda, dores reais); a Atlas lembra, com a citação exata, o que já foi dito numa reunião passada — nunca um resumo inventado.
+8. O gestor abre o **Cockpit de Vendas** no navegador e acompanha as conversas de todo o time em tempo real, sem precisar abrir o telefone de ninguém.
+
+## Como funciona por baixo
+
+O ponto que sustenta tudo isso: **o LLM só propõe, o código decide**. Cada especialista tem uma lista fechada de ferramentas que pode chamar (`agents/team.py`), e o plano do Orion passa por validação antes de rodar — no máximo 3 passos, no máximo 1 escrita, sempre por último. Um modelo nunca recebe a permissão de outro usuário nem decide sozinho o que grava no CRM; quem decide quem pode ver o quê é sempre o Postgres, via `Principal.owner_clause()`.
+
+A maior parte da inteligência do produto não usa LLM nenhum: previsão de forecast (Vega), coach de qualidade de dados (Polaris) e insights de empresas (dores, termos, ERPs) são cálculo determinístico — SQL e estatística puros, testados bit a bit contra a mesma implementação em TypeScript que roda no navegador. O modelo de linguagem entra só nas duas pontas que exigem entender linguagem natural: decidir qual especialista responde, e narrar o resultado em português — nunca fazer conta, nunca escrever SQL, nunca ver dado pessoal bruto.
+
+O canal é a [Evolution API](https://docs.evolutionfoundation.com.br), auto-hospedada sobre o protocolo do WhatsApp Web (Baileys) — não a API oficial da Meta, então sem verificação de negócio nem aprovação de template, mas também sem ser um canal sancionado pelo WhatsApp. Quando o [Langfuse](https://langfuse.com) está configurado (`telemetry.py`, opcional e auto-hospedado), cada mensagem processada vira um trace: dá pra ver, por conversa, qual especialista respondeu, quanto custou em tokens e onde a resposta saiu do previsto — sem ele, o bot funciona exatamente igual, só sem essa visibilidade.
+
+O painel web (`web/`) por padrão mostra dados sintéticos calculados no navegador — dá pra ver o produto inteiro sem conta em HubSpot, Meta, OpenAI ou Anthropic. Uma conta real entra por trás, sem o usuário perceber a troca.
 
 ## Estado atual
 
@@ -19,31 +46,35 @@ Número na tela vem do SQL, nunca do modelo. É a primeira fatia de uma visão 3
 | Front-end (landing, funcionalidades, preços, login, cadastro, dashboard) | Pronto, no ar na Vercel |
 | Banco, migrations, views `gold`/`serving`, backup | Pronto e testado contra Postgres real |
 | Ingestão do HubSpot (backfill retomável, incremental, histórico, snapshots, `audit`) | Pronto; **testado só com fixtures e HubSpot simulado** |
-| Bot no WhatsApp (webhook, fila, orquestrador, alertas, resumo matinal), via Evolution API (ADR 0008) | **Em produção**, num VPS real, com `api` + `worker` + Postgres, HTTPS via Traefik ([docs/deploy-vps.md](docs/deploy-vps.md)). Verificado com conversa real: ativação, e Vega/Lyra/Altair/Argus respondendo com dados reais e LLM real (DeepSeek), 0 erro. Faltam: áudio, escritas (add_note/create_task/confirmação) e HubSpot real — a base ainda é sintética (`dev seed`) |
-| Observatório (Orion planeja, especialistas executam) | Pronto. Avaliação do planejador: conjunto de 68 frases + 17 inéditas (`omnidata eval planner`); **o modo com LLM ainda não foi medido** (precisa de chave) e faltam frases reais do WhatsApp |
-| Áudios do WhatsApp (transcrição) | Pronto; **ainda não rodou na API real da OpenAI** |
+| Bot no WhatsApp (webhook, fila, orquestrador, alertas, resumo matinal e recap noturno), via Evolution API (ADR 0008) | **Em produção**, num VPS real, com `api` + `worker` + Postgres, HTTPS via Traefik ([docs/deploy-vps.md](docs/deploy-vps.md)). Verificado com conversas reais: ativação, escritas com confirmação, áudio, meta pessoal e os nove especialistas respondendo com LLM real, 0 erro — contra a base seedada (`dev seed`), ainda não HubSpot real |
+| Observatório (Orion planeja, especialistas executam; resolutivo — resolve referências à troca anterior, ex. "essas causas") | Pronto. Avaliação do planejador: conjunto de 68 frases + 17 inéditas (`omnidata eval planner`) |
+| Cockpit de Vendas (`/dashboard/cockpit`): conversas reais do WhatsApp, para o gestor acompanhar sem abrir o telefone de ninguém | Pronto e em produção |
+| Observabilidade (Langfuse, `telemetry.py`, opcional): um trace por mensagem, com custo, latência e o plano que o Orion decidiu | Pronto e em produção, verificado contra uma instância real |
+| Áudios do WhatsApp (transcrição) | Pronto e em produção (OpenAI) |
 | Upload de datasets (CSV/XLSX de negócios e metas): página, API e CLI | Pronto; testado com uma exportação real do HubSpot (1000 negócios) e no navegador |
 | Airbyte como camada de conectores (HubSpot + outras fontes por mapeamento) | Pronto no código; **nunca rodou contra um Airbyte real** ([docs/airbyte.md](docs/airbyte.md)) |
-| Insights de empresas (dores, termos, ERPs, tipo de demanda), com os agentes; painel `/dashboard/insights` | Pronto; testado com dataset sintético e com um export real do HubSpot (apenas na análise local); as views SQL (0009) ainda não rodaram contra o Postgres do bot em produção |
-| Motivo de perda, previsão, coach (M2/M3), dbt | Não implementado (ADR 0002) |
+| Insights de empresas (dores, termos, ERPs, tipo de demanda), com os agentes; painel `/dashboard/insights` | Pronto; testado com dataset sintético e com um export real do HubSpot |
+| dbt | Não implementado (ADR 0002) |
 
-Nada acima foi exercitado contra HubSpot, Meta ou LLM reais: veja **[docs/go-live.md](docs/go-live.md)** para o que depende das suas contas.
+Veja **[docs/go-live.md](docs/go-live.md)** para o que ainda depende das suas próprias contas (HubSpot, Meta/número de WhatsApp).
 
 ## O Observatório (harness agêntico, ADR 0003)
 
 | Membro | Função | Ferramentas |
 |---|---|---|
 | **Orion** | Coordenador: analisa o pedido, monta o plano (≤ 3 passos) e devolve uma resposta só | — |
-| **Vega** | Analista de Metas, segmentos e previsão | `get_kpis`, `get_quota_status`, `get_segment_insights`, `get_forecast` |
+| **Vega** | Analista de Metas, segmentos, previsão e — pra gestores — status do time inteiro | `get_kpis`, `get_quota_status`, `get_segment_insights`, `get_forecast`, `get_team_status` |
 | **Altair** | Gerente de Pipeline, demanda e ERPs | `get_pipeline_summary`, `get_deal`, `list_deals_needing_action`, `get_demand_types`, `get_systems_landscape` |
 | **Lyra** | Escriba do CRM e leitora de notas (dores, termos) | `add_note`, `create_task`, `propose_deal_update`, `undo_last`, `get_pains`, `get_recurring_terms` |
-| **Aurora** | Rotina, alertas e insight do dia | `get_morning_brief`, `get_insight_digest` |
+| **Aurora** | Rotina, alertas, insight do dia e meta pessoal do vendedor | `get_morning_brief`, `get_insight_digest`, `set_goal`, `get_goal_status` |
 | **Argus** | Auditor de Confiança | `get_data_quality`, `get_insight_coverage` |
 | **Polaris** | Coach de Qualidade: transforma a auditoria em fila de correção por vendedor (só lê; a Lyra grava) | `get_fix_queue` |
+| **Nova** | Coach de Vendas: script e quebra de objeção a partir do que já foi registrado | `get_playbook`, `search_meeting_notes` |
+| **Atlas** | Memória de Reuniões: busca por assunto no que já foi dito, sempre citação real | `search_meeting_notes` |
 
-O LLM só *propõe* o plano; o código valida (allowlist por especialista, no máximo 1 escrita e por último). Endereçamento direto: “Vega, como estou na meta?”. `uv run omnidata team` lista a equipe; `team export` gera `web/src/lib/team.json` (um teste garante a sincronia).
+O LLM só *propõe* o plano; o código valida (allowlist por especialista, no máximo 1 escrita e por último). Endereçamento direto: “Vega, como estou na meta?”. `uv run omnidata team` lista a equipe; `team export` gera `web/src/lib/team.json` (um teste garante a sincronia). `search_meeting_notes` é a única ferramenta com dois donos legítimos (Nova e Atlas) — a resposta é assinada por quem o Orion realmente planejou, não por um dono fixo.
 
-**WhatsApp (Evolution API, ADR 0008):** o gateway é a [Evolution API](https://docs.evolutionfoundation.com.br), auto-hospedada, sobre o protocolo do WhatsApp Web (Baileys) — não é a API oficial da Meta, então não exige verificação de negócio nem aprovação de template, mas carrega o risco de não ser um canal sancionado pelo WhatsApp. Ligar o número:
+**WhatsApp (Evolution API, ADR 0008):** o gateway é a [Evolution API](https://docs.evolutionfoundation.com.br), auto-hospedada, sobre o protocolo do WhatsApp Web (Baileys). Ligar o número:
 
 ```bash
 omnidata evolution create-instance --name omnidata --webhook-url https://<sua-api>/webhooks/evolution   # salva um QR code
@@ -51,11 +82,19 @@ omnidata evolution create-instance --name omnidata --webhook-url https://<sua-ap
 omnidata evolution status --name omnidata   # repita até aparecer "open"
 ```
 
-Depois, `EVOLUTION_INSTANCE=omnidata` no `.env`. Sem assinatura nativa de webhook (diferente do Meta): `EVOLUTION_WEBHOOK_SECRET` é um valor que você inventa e a Evolution devolve como cabeçalho a cada chamada, conferido em tempo constante. Botões e listas viram texto numerado (a UI nativa do Baileys não é confiável nos aparelhos reais).
-
-**Testado de ponta a ponta em 22/09/2026** contra uma instância real (API local + túnel ngrok): QR escaneado, uma mensagem de texto real recebida com o payload batendo exatamente com o que o código esperava, o Orion recusou corretamente o número não cadastrado e a resposta saiu pela Evolution sem erro. Um ponto da documentação pública estava errado e foi corrigido: `set_webhook` precisa do corpo aninhado em `{"webhook": {...}}`, não plano. Ainda faltam confirmar: uma conversa completa com número cadastrado (chamando ferramentas de verdade) e áudio (transcrição).
+Depois, `EVOLUTION_INSTANCE=omnidata` no `.env`. Sem assinatura nativa de webhook (diferente do Meta): `EVOLUTION_WEBHOOK_SECRET` é um valor que você inventa e a Evolution devolve como cabeçalho a cada chamada, conferido em tempo constante. Botões e listas viram texto numerado (a UI nativa do Baileys não é confiável nos aparelhos reais). Mensagens de grupo nunca chegam a um Principal — só uma conversa 1:1 com o número do bot é processada.
 
 **Áudios do WhatsApp:** transcritos com `gpt-transcribe` (OpenAI, US$ 0,0045/min; fallback `gpt-4o-mini-transcribe`), decodificados para WAV via ffmpeg, com limite de 180 s e orçamento diário por usuário. O bot mostra “Entendi: …” antes de responder, e escritas de risco continuam pedindo confirmação. Sem Azure no projeto (ADR 0004). Para escolher o modelo com seus áudios: `scripts/bench_transcribe.py`.
+
+**Conversa humanizada:** um "digitando..." pulsado (liga, pausa, liga de novo) até a resposta ficar pronta, uma reação de 👍 num "valeu" solto em vez de repetir o menu, e o tom da narração muda com o sentimento detectado no texto (frustração, pressa) — tudo por regra determinística, nunca uma chamada extra ao modelo.
+
+## Cockpit de Vendas
+
+`/dashboard/cockpit`: as conversas reais do WhatsApp, para a gestão acompanhar sem precisar abrir o telefone de ninguém — a mesma dor que motiva o resto do produto, só que do lado do gestor. Lê direto do `app.wa_message` que o bot já grava a cada mensagem enviada e recebida; nenhum dado novo, nenhuma escrita própria.
+
+## Observabilidade (Langfuse)
+
+`telemetry.py`: opcional, liga sozinho quando `LANGFUSE_PUBLIC_KEY`, `LANGFUSE_SECRET_KEY` e `LANGFUSE_BASE_URL` estão no `.env` — sem eles, o bot funciona exatamente igual, só sem os traces. Cada mensagem processada vira um trace (`bot/orchestrator.py::handle`): a decisão do Orion, a ferramenta que cada especialista chamou e a narração final, com modelo, tokens e latência de cada chamada ao LLM. Nenhum texto entra num trace sem antes passar pela mesma máscara de PII usada em toda chamada ao modelo.
 
 ## Dados de entrada
 
@@ -69,6 +108,8 @@ Depois, `EVOLUTION_INSTANCE=omnidata` no `.env`. Sem assinatura nativa de webhoo
 **Coach (Polaris):** `/dashboard/qualidade` mostra “O que corrigir” e, no WhatsApp, “o que preciso corrigir?” devolve os negócios com lacunas (sem valor, data vencida, sem próximo passo, sem nota, nome fora do padrão), ordenados por valor. Se uma lacuna aparece em quase todos os negócios (≥ 90%), ele avisa que pode ser do export ou do padrão do CRM, em vez de cobrar cada vendedor. Dono desativado e duplicatas vão só para o gestor. A Polaris não escreve no CRM: a correção passa pela Lyra, com confirmação. `omnidata hygiene analyze <arquivo>` roda sem banco.
 
 **Insights de empresas** (`/dashboard/insights`, `omnidata insights analyze <arquivo>`): dores, termos recorrentes, ERPs/CRMs, tipo de demanda, segmentos e campanhas, extraídos das notas e dos nomes dos negócios por contagem determinística (sem LLM). Lyra cuida de dores e termos, Altair de demanda e ERPs, Vega de segmentos, Argus da cobertura e Aurora do insight do dia; o Orion junta tudo num pedido amplo. Cada bloco mostra a cobertura, e associações são correlação, nunca causa. Entende o export do HubSpot (`Cliente<>Parceiro [Demanda]`) e o formato `Empresa – Demanda`.
+
+**Memória de reuniões (Atlas, ADR 0009):** transcrições de reunião viram embeddings num Chroma auto-hospedado, só como índice semântico — quem decide o que o vendedor pode ver continua sendo o Postgres (`Principal.owner_clause()`), checado de novo em cada trecho antes de virar resposta, nunca o Chroma sozinho.
 
 ## Avaliação do planejador (Orion)
 
@@ -92,14 +133,19 @@ web/                      Next.js 15 + Ledger (deploy: Vercel, Root Directory = 
 src/omnidata/
   agents/                 equipe (team.py) e validação de planos (orion.py)
   bot/                    orquestrador, ações de escrita, repositórios com Principal, gateway WhatsApp, webhook
-  llm/                    chat (anthropic | openai), transcrição, guarda de números
+  llm/                    chat (anthropic | openai | deepseek), transcrição, guarda de números
+  rag/                    embeddings + Chroma (Atlas: memória de reuniões, ADR 0009)
+  forecast/               previsão estatística determinística (Vega, ADR 0007)
+  hygiene/                fila de correção de dados (Polaris)
+  transcripts/            transcrições sintéticas de reunião para teste (synth.py, ingest.py)
+  telemetry.py            observabilidade (Langfuse, opcional)
   crm/hubspot/            cliente resiliente, mapeamento, escrita
   datasets/               upload: leitura CSV/XLSX, validação, importador
   integrations/airbyte/   cliente da API, aterrissagem HubSpot, mapeamento de outras fontes
   insights/               dores, termos, ERPs, demanda (determinístico; spec compartilhado com o web)
   ingest/  alerts/  api/  jobs/  security/
 supabase/migrations/      SQL forward-only (bronze, silver, app, gold, serving)
-docs/                     go-live.md, datasets.md, airbyte.md, templates.md, adr/ (0001–0006)
+docs/                     go-live.md, datasets.md, airbyte.md, templates.md, adr/ (0001–0009)
 scripts/                  screenshot-hero.sh, bench_transcribe.py
 ```
 
@@ -124,11 +170,11 @@ npm run dev          # http://localhost:3000
 ```
 
 1. Abra `http://localhost:3000` e clique em **Entrar**. O login é só demonstração: qualquer e-mail válido e senha de 8+ caracteres funcionam.
-2. No painel (`/dashboard`) você vê Visão geral, Negócios, Alertas, Equipe, WhatsApp e Qualidade dos dados, todos com dados sintéticos.
+2. No painel (`/dashboard`) você vê Visão geral, Negócios, Alertas, Equipe, Cockpit, Reunião de vendas, Insights e Qualidade dos dados, todos com dados sintéticos.
 3. **Para usar o seu arquivo:** vá em **Datasets**, arraste o export de negócios do CRM no cartão **Negócios** (não no de Metas) e clique em **Carregar no painel**. Visão geral, Negócios, Qualidade e **Insights** passam a usar o seu arquivo. Para desfazer, use "remover".
    - **Privacidade:** nesse modo o arquivo é lido **só no seu navegador** e guardado no `localStorage` dele. Nada é enviado a servidor. Limpe o site nas configurações do navegador para apagar.
    - **Não coloque arquivos reais dentro do repositório** (principalmente em `web/public/`, que a Vercel publica). Use uma pasta `data/`, já ignorada pelo git.
-   - As **Metas** só funcionam com o servidor (caminho B).
+   - As **Metas** e o **Cockpit** só funcionam com o servidor (caminho B) — dependem do bot rodando de verdade.
 4. Modelos de planilha: no próprio cartão há o link "baixar CSV"; exemplos em `web/public/samples/` e `web/public/templates/`.
 
 O que o arquivo de negócios precisa ter (nomes de colunas do HubSpot em pt-BR ou en, com ou sem acento):
@@ -155,7 +201,9 @@ make check                         # ruff + mypy + pytest
 
 **Sem chaves de LLM** (`ANTHROPIC_API_KEY` ou `OPENAI_API_KEY`), o bot funciona em modo degradado por palavras-chave e menu. Com chave, o Orion planeja com o modelo. Defina `LLM_PROVIDER=anthropic|openai|deepseek` no `.env`. Não há Azure no projeto.
 
-**Fallback de provedor (OpenRouter):** se `OPENROUTER_API_KEY` estiver definida (com `OPENROUTER_MODEL_ROUTER` e `OPENROUTER_MODEL_NARRATOR`), toda chamada ao provedor principal (`LLM_PROVIDER`) que falhar por erro do provedor (rede, limite, 5xx) tenta o OpenRouter em seguida, na mesma chamada — nunca antes de o principal falhar. Se só o OpenRouter estiver configurado, ele vira o único provedor. Se os dois faltarem, o bot cai no modo degradado, como já acontecia. A falha é registrada em log (`llm fallback: deepseek -> openrouter (...)`), e a telemetria (`app.llm_call`) mostra qual provedor respondeu de fato. Um plano recusado pela validação do Orion (agente ou ferramenta errados) não aciona o fallback: isso é erro do plano, não do provedor.
+**Fallback de provedor (OpenRouter):** se `OPENROUTER_API_KEY` estiver definida (com `OPENROUTER_MODEL_ROUTER` e `OPENROUTER_MODEL_NARRATOR`), toda chamada ao provedor principal (`LLM_PROVIDER`) que falhar por erro do provedor (rede, limite, 5xx) tenta o OpenRouter em seguida, na mesma chamada — nunca antes de o principal falhar. Se só o OpenRouter estiver configurado, ele vira o único provedor. Se os dois faltarem, o bot cai no modo degradado, como já acontecia. A falha é registrada em log (`llm fallback: deepseek -> openrouter (...)`), e a telemetria (`app.llm_call`, e o Langfuse se estiver configurado) mostra qual provedor respondeu de fato. Um plano recusado pela validação do Orion (agente ou ferramenta errados) não aciona o fallback: isso é erro do plano, não do provedor.
+
+**Observabilidade (opcional):** defina `LANGFUSE_PUBLIC_KEY`, `LANGFUSE_SECRET_KEY` e `LANGFUSE_BASE_URL` no `.env` (Langfuse Cloud ou auto-hospedado) para ver, por mensagem, qual especialista respondeu, o custo em tokens e a latência de cada chamada ao LLM. Sem elas, o bot funciona exatamente igual, só sem os traces.
 
 **Testes:** os que usam banco precisam de um Postgres de teste em `TEST_DATABASE_URL` (padrão `postgresql://postgres@127.0.0.1:54399/omnidata_test`); sem ele são ignorados, e o resultado mostra quantos foram. Para rodar todos, crie esse banco e aplique as migrations nele.
 
@@ -183,6 +231,8 @@ uv run omnidata insights analyze negocios.csv                             # insi
 | `EVOLUTION_API_URL`, `EVOLUTION_API_KEY`, `EVOLUTION_INSTANCE`, `EVOLUTION_WEBHOOK_SECRET` | WhatsApp via Evolution API (ADR 0008) | só com WhatsApp real |
 | `LLM_PROVIDER`, `ANTHROPIC_API_KEY` / `OPENAI_API_KEY` / `DEEPSEEK_API_KEY` | planejamento e narração; `OPENAI_API_KEY` também transcreve áudios | opcional (sem elas: modo degradado) |
 | `OPENROUTER_API_KEY`, `OPENROUTER_MODEL_ROUTER`, `OPENROUTER_MODEL_NARRATOR` | fallback: usado se o `LLM_PROVIDER` falhar (ou sozinho, sem um principal) | opcional |
+| `LANGFUSE_PUBLIC_KEY`, `LANGFUSE_SECRET_KEY`, `LANGFUSE_BASE_URL` | observabilidade (traces por mensagem) | opcional |
+| `CHROMA_URL`, `CHROMA_COLLECTION`, `EMBEDDINGS_MODEL` | memória de reuniões (Atlas, ADR 0009) | só se usar Atlas |
 | `ADMIN_API_TOKEN`, `CORS_ORIGINS` | upload de datasets pela API | só para usar a página Datasets contra a API |
 | `INGEST_MODE` | `direct` (padrão) ou `airbyte` | não |
 | `NEXT_PUBLIC_API_URL` (em `web/`) | liga o painel à API | não (sem ela o painel roda em modo demonstração) |
@@ -214,7 +264,7 @@ Importe o repositório com **Root Directory = `web`** (framework Next.js). Não 
 | `/` | Landing (Hook → Re-Hook → Meat → CTA) com números do time calculados de dados sintéticos |
 | `/funcionalidades` | Blocos por tema com exemplos de conversa no WhatsApp |
 | `/precos`, `/login`, `/cadastro` | Planos todos “Sob consulta”; login/cadastro **sem autenticação real** |
-| `/dashboard/*` | Visão geral, negócios, alertas, **insights**, **reunião de vendas**, equipe, **datasets**, WhatsApp, qualidade dos dados |
+| `/dashboard/*` | Visão geral, negócios, alertas, **insights**, **reunião de vendas**, equipe, **datasets**, **cockpit**, qualidade dos dados |
 
 Cada rota tem `<title>` próprio; o favicon é a mesma marca em todas (`web/src/app/**/icon.svg`). O efeito de verbos girando está em `web/src/components/SpinVerb.tsx`.
 
@@ -222,3 +272,7 @@ Cada rota tem `<title>` próprio; o favicon é a mesma marca em todas (`web/src/
 
 `web/src/lib/seed.ts` (24 negócios sintéticos) → `web/src/lib/metrics.ts` (win rate, IC de Wilson, saúde do negócio, attention_score).
 Todo número exibido é calculado ali; nada é digitado no JSX.
+
+## Um limite honesto
+
+A landing (`web/src/app/page.tsx`) e a página de Equipe ainda descrevem "sete" ou "seis assessores" em alguns trechos de texto fixo — o Observatório já tem nove (Nova e Atlas entraram depois). `web/src/lib/team.json` (gerado de `team.py`) está correto; é só a prosa da landing que ficou pra trás e precisa de um ajuste separado.
