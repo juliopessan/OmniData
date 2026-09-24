@@ -272,7 +272,3 @@ Cada rota tem `<title>` próprio; o favicon é a mesma marca em todas (`web/src/
 
 `web/src/lib/seed.ts` (24 negócios sintéticos) → `web/src/lib/metrics.ts` (win rate, IC de Wilson, saúde do negócio, attention_score).
 Todo número exibido é calculado ali; nada é digitado no JSX.
-
-## Um limite honesto
-
-A landing (`web/src/app/page.tsx`) e a página de Equipe ainda descrevem "sete" ou "seis assessores" em alguns trechos de texto fixo — o Observatório já tem nove (Nova e Atlas entraram depois). `web/src/lib/team.json` (gerado de `team.py`) está correto; é só a prosa da landing que ficou pra trás e precisa de um ajuste separado.
