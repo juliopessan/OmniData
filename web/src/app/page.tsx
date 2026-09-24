@@ -4,6 +4,8 @@ import { Eyebrow, Bar, Fig, Measured, Flag } from "@/components/Ledger";
 import { Chat } from "@/components/Chat";
 import { TeamGrid } from "@/components/TeamGrid";
 import { SpinVerb } from "@/components/SpinVerb";
+import { StoryFilm } from "@/components/StoryFilm";
+import { WorkflowDemo } from "@/components/WorkflowDemo";
 import { computeMetrics, brl, pct, pad2 } from "@/lib/metrics";
 
 /**
@@ -84,6 +86,13 @@ export default function Home() {
           </div>
         </section>
 
+        {/* ───────────── FILM ───────────── */}
+        <section className="section" id="filme">
+          <div className="wrap">
+            <StoryFilm stalled={m.stalled} />
+          </div>
+        </section>
+
         {/* ───────────── MEAT ───────────── */}
         <section className="section" id="equipe">
           <div className="wrap stack" style={{ gap: 32 }}>
@@ -122,16 +131,7 @@ export default function Home() {
           <div className="wrap stack" style={{ gap: 40 }}>
             <div className="stack"><Eyebrow>Por baixo do capô</Eyebrow>
               <h2 className="h2">Do CRM ao WhatsApp em quatro passos.</h2></div>
-            <div className="seq">
-              {[
-                ["01", "Ingestão", "Sincroniza o HubSpot a cada 15 minutos: negócios, contatos, atividades e histórico de etapas."],
-                ["02", "Métricas em SQL", "Win rate com intervalo de confiança, cobertura de meta e saúde do negócio, calculados e nunca “estimados” pelo modelo."],
-                ["03", "Plano do Orion", "O modelo propõe até 3 passos; o código valida quem pode chamar o quê. No máximo uma escrita, e por último."],
-                ["04", "Resposta assinada", "Cada especialista escreve a sua parte. Toda escrita tem recibo e Desfazer por 24h; as sensíveis pedem confirmação."],
-              ].map(([n, t, b]) => (
-                <div key={n}><span className="n">{n}</span><h3 className="h3">{t}</h3><p className="body">{b}</p></div>
-              ))}
-            </div>
+            <WorkflowDemo />
           </div>
         </section>
 
