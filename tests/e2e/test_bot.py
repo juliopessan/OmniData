@@ -366,12 +366,48 @@ async def test_send_proposal_whatsapp_only_from_a_pasted_list_line_without_scope
     d = deps(gw, w, s, FakeLlm(tool=ToolCall("send_proposal", {"deal": "Empresa 890 – Novo (R$ 120.000)", "channel": "whatsapp"})),
              emailer=emailer)
     out = await say(conn, d, REP_A, "Vela, busque na database a empresa 890 e manda o pdf aqui no whats")
-    assert "Empresa 890 – Novo" in out["body"] and "1890" not in out["body"]
-    assert "Sem escopo descrito" in out["body"] and "e-mail" not in out["body"].split("?")[0]
-    done = await say(conn, d, REP_A, reply=out["buttons"][0][0])
-    assert "Enviado" in done["body"] and emailer.sent == []
+    # WhatsApp-only goes back to the seller's own chat: generated and sent at once, no "Confirmar" round-trip
+    assert "Enviado" in out["body"] and "Empresa 890 – Novo" in out["body"] and "1890" not in out["body"]
+    assert "dados do CRM" in out["body"] and not out.get("buttons") and emailer.sent == []
     docs = [m for m in gw.sent if m["type"] == "document"]
-    assert len(docs) == 1 and docs[0]["data"].startswith(b"%PDF-")
+    assert len(docs) == 1 and docs[0]["data"].startswith(b"%PDF-") and docs[0]["to"] == REP_A
+    with conn.cursor() as cur:
+        cur.execute("select status from app.pending_action where kind='send_proposal'")
+        assert [r["status"] for r in cur.fetchall()] == ["executed"]
+        cur.execute("select count(*) n from app.audit_log where event='send_proposal'")
+        assert cur.fetchone()["n"] == 1
+
+
+async def test_numbered_reply_confirms_instead_of_replanning(world):  # "1" used to reach the LLM and create a 2nd proposal
+    conn, gw, w, s, _ = world
+    deal = await _own_deal(conn)
+    emailer = FakeEmailer()
+    d = deps(gw, w, s, FakeLlm(tool=ToolCall("send_proposal", {"deal": deal["hs_deal_id"], "summary": "Escopo combinado.",
+                                                               "recipient_email": "cliente@acme.com", "channel": "email"})), emailer=emailer)
+    out = await say(conn, d, REP_A, "manda a proposta pro cliente")
+    assert [b[1] for b in out["buttons"]] == ["Confirmar", "Cancelar"]
+    done = await say(conn, d, REP_A, "1")
+    assert "Enviado" in done["body"] and len(emailer.sent) == 1
+    with conn.cursor() as cur:
+        cur.execute("select count(*) n from app.pending_action where kind='send_proposal'")
+        assert cur.fetchone()["n"] == 1
+
+
+async def test_numbered_reply_picks_the_menu_option(world):  # the 23/09 case: "5" answered the menu with the menu again
+    conn, gw, w, s, _ = world
+    d = deps(gw, w, s)  # no LLM: the menu path
+    menu = await say(conn, d, REP_A, "xyzzy")
+    assert menu.get("rows")
+    out = await say(conn, d, REP_A, str(len(menu["rows"])))
+    assert S.MENU_BODY not in out["body"]
+
+
+async def test_a_bare_number_without_options_before_it_is_not_an_option(world):
+    conn, gw, w, s, _ = world
+    d = deps(gw, w, s)
+    await say(conn, d, REP_A, "como estou na meta?")  # plain text answer, no options
+    out = await say(conn, d, REP_A, "2")
+    assert out["body"].startswith(S.MENU_BODY)  # falls through to the normal route, not to a stale option
 
 
 async def test_needs_info_for_vela_never_asks_for_an_email(world):  # the hint used to be Lyra's, with an e-mail in it

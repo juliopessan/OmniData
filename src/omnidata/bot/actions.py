@@ -180,20 +180,40 @@ def propose_deal_update(conn: Conn, p: Principal, deal_query: str, field_name: s
                  buttons=[(f"act:confirm:{aid}", S.BTN_CONFIRM), (f"act:adjust:{aid}", S.BTN_ADJUST), (f"act:cancel:{aid}", S.BTN_CANCEL)])
 
 
-# ---------------- high-risk: send proposal (Vela; propose -> confirm, own confirm path) -----------------
+# ---------------- send proposal (Vela; own confirm path) -----------------
+# Only a proposal that leaves for the CLIENT (e-mail) is a high-risk write needing confirmation. channel="whatsapp" sends
+# the PDF back to the seller's own chat — nothing reaches anyone else — so it is generated and sent right away, still
+# through pending_action + audit_log like every other write.
+def _new_proposal(conn: Conn, p: Principal, deal: dict[str, Any], summary: str, recipient_email: str, channel: str) -> str:
+    params = {"deal_id": deal["hs_deal_id"], "deal_name": deal["name"], "amount": str(deal["amount"] or 0),
+              "summary": summary, "recipient_email": recipient_email, "channel": channel}
+    aid = _new_pending(conn, p, "send_proposal", params, "normal" if channel == "whatsapp" else "high", None, "proposed", PENDING_TTL)
+    conn.commit()
+    return aid
+
+
 def propose_send_proposal(conn: Conn, p: Principal, deal_query: str, summary: str, recipient_email: str, channel: str,
                           *, deal_id: str | None = None) -> Reply:
     deal, ask = (repo.get_deal_scoped(conn, p, deal_id), None) if deal_id else _resolve_deal(conn, p, deal_query)
     if deal is None:
         return ask or Reply(S.NO_MATCH_DEAL.format(q=deal_query))
-    params = {"deal_id": deal["hs_deal_id"], "deal_name": deal["name"], "amount": str(deal["amount"] or 0),
-              "summary": summary, "recipient_email": recipient_email, "channel": channel}
-    aid = _new_pending(conn, p, "send_proposal", params, "high", None, "proposed", PENDING_TTL)
-    conn.commit()
+    aid = _new_proposal(conn, p, deal, summary, recipient_email, channel)
     where = {"email": f"por e-mail ({recipient_email})", "whatsapp": "aqui no WhatsApp", "both": f"por e-mail ({recipient_email}) e aqui no WhatsApp"}[channel]
     return Reply(f"Confirma o envio da proposta de *{deal['name']}* ({S.brl(deal['amount'])}) {where}?"
                  + ("" if summary.strip() else S.PROPOSAL_NO_SCOPE),
                  buttons=[(f"act:confirm:{aid}", S.BTN_CONFIRM), (f"act:cancel:{aid}", S.BTN_CANCEL)])
+
+
+async def send_proposal_to_self(conn: Conn, p: Principal, deal_id: str, summary: str, *, gateway: MessagingGateway,
+                                company_name: str = "OmniData", logo_path: str = "") -> Reply:
+    deal = repo.get_deal_scoped(conn, p, deal_id)
+    if deal is None:
+        return Reply(S.NO_DATA)
+    aid = _new_proposal(conn, p, deal, summary, "", "whatsapp")
+    r = await confirm_send_proposal(conn, p, aid, emailer=None, gateway=gateway, company_name=company_name, logo_path=logo_path)
+    if not summary.strip() and r.text.startswith("Enviado"):
+        r.text += S.PROPOSAL_NO_SCOPE_SENT
+    return r
 
 
 async def confirm_send_proposal(conn: Conn, p: Principal, aid: str, *, emailer: EmailSender | None, gateway: MessagingGateway,

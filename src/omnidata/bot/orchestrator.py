@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import re
 import uuid
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, timedelta
@@ -113,18 +114,22 @@ async def _typing_pulses(gateway: MessagingGateway, to: str, budget: float) -> N
 async def send(conn: Conn, deps: Deps, to: str, user_id: str | None, reply: Reply) -> None:
     if deps.settings.typing_delay_max_seconds > 0:  # off by default (config.py)
         await _typing_pulses(deps.gateway, to, deps.settings.typing_delay_max_seconds)
+    options: list[tuple[str, str]] = []
     if reply.list_rows:
         await deps.gateway.send_list(to, reply.text, reply.list_button, reply.list_rows)
-        kind = "list"
+        kind, options = "list", [(i, t) for i, t, _d in reply.list_rows]
     elif reply.buttons:
         await deps.gateway.send_buttons(to, reply.text, reply.buttons[:3])
-        kind = "buttons"
+        kind, options = "buttons", list(reply.buttons[:3])
     else:
         await deps.gateway.send_text(to, reply.text)
         kind = "text"
+    payload: dict[str, Any] = {"text": reply.text}  # same shape as inbound (webhook.persist_inbound), for the sales cockpit
+    if options:  # in the order shown, so a numbered reply ("1") maps back to its id (_numbered_option)
+        payload["options"] = [[i, t] for i, t in options]
     with conn.cursor() as cur:
         cur.execute("insert into app.wa_message (user_id, direction, kind, payload, status, processed_at) values (%s,'out',%s,%s,'done',now())",
-                    (user_id, kind, Jsonb({"text": reply.text})))  # same shape as inbound (webhook.persist_inbound), for the sales cockpit
+                    (user_id, kind, Jsonb(payload)))
     conn.commit()
 
 
@@ -328,8 +333,34 @@ def _deal_view(d: dict[str, Any]) -> dict[str, Any]:
 
 
 # ---------------- free text -----------------
+_NUMBER_REPLY = re.compile(r"^\s*(\d{1,2})\s*[.)]?\s*$")
+
+
+def _numbered_option(conn: Conn, p: Principal, text: str) -> str | None:
+    """Evolution renders buttons/lists as numbered text (evolution._numbered_text), so the seller answers "1" or the
+    option's title as a plain text message. Map it back to the reply id of the LAST message we sent, if that message had
+    options and is recent — otherwise "1" reached the LLM as free text and it re-planned the previous request."""
+    with conn.cursor() as cur:
+        cur.execute("select payload from app.wa_message where user_id=%s and direction='out' and received_at > now() - interval '30 minutes' "
+                    "order by received_at desc limit 1", (p.user_id,))
+        r = cur.fetchone()
+    conn.commit()
+    options = ((r or {}).get("payload") or {}).get("options") or []
+    if not options:
+        return None
+    m = _NUMBER_REPLY.match(text)
+    if m:
+        n = int(m.group(1))
+        return str(options[n - 1][0]) if 1 <= n <= len(options) else None
+    low = text.strip().lower()
+    return next((str(i) for i, t in options if str(t).strip().lower() == low), None)
+
+
 async def _handle_text(conn: Conn, deps: Deps, p: Principal, text: str) -> Reply:
     text = text.strip()
+    rid = _numbered_option(conn, p, text)
+    if rid:
+        return await _handle_reply_id(conn, deps, p, rid)
     low = text.lower()
     if low in ("pode", "confirmo", "confirmar", "sim") or low in ("cancela", "cancelar", "não", "nao"):
         return await _free_text_confirmation(conn, deps, p, confirm=low in ("pode", "confirmo", "confirmar", "sim"))
@@ -666,7 +697,10 @@ async def _narrate(conn: Conn, deps: Deps, p: Principal, data: dict[str, Any], t
 
 async def _run_write(conn: Conn, deps: Deps, p: Principal, tool: str, a: dict[str, Any]) -> Reply:
     found = repo.find_deals(conn, p, a["deal"])
-    if len(found) > 1 and found[0]["name"].lower() != a["deal"].lower():  # ambiguity -> list message, remember intent
+    exact = [d for d in found if repo.normalize_deal_name(d["name"]) == repo.normalize_deal_name(a["deal"])]
+    if len(exact) == 1:
+        found = exact
+    if len(found) > 1:  # ambiguity -> list message, remember intent
         _set_state(conn, p, "pick", {"tool": tool, "args": a})
         rows = [(f"pick:{d['hs_deal_id']}", d["name"], f"{d['stage_label']} · {S.brl(d['amount'])}") for d in found[:10]]
         return Reply(S.PICK_DEAL, list_rows=rows)
@@ -678,6 +712,9 @@ async def _run_write(conn: Conn, deps: Deps, p: Principal, tool: str, a: dict[st
 
 async def _run_write_with_deal(conn: Conn, deps: Deps, p: Principal, tool: str, a: dict[str, Any], deal_id: str) -> Reply:
     if tool == "send_proposal":  # never touches HubSpot — no deps.writer needed
+        if a["channel"] == "whatsapp":  # back to the seller only: no confirmation (see actions._new_proposal)
+            return await actions.send_proposal_to_self(conn, p, deal_id, a["summary"], gateway=deps.gateway,
+                                                       company_name=deps.settings.proposal_company_name, logo_path=deps.settings.proposal_logo)
         return actions.propose_send_proposal(conn, p, a["deal"], a["summary"], a["recipient_email"], a["channel"], deal_id=deal_id)
     assert deps.writer
     if tool == "add_note":

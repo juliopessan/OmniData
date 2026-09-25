@@ -102,10 +102,9 @@ def verify_evolution_secret(secret: str, header_value: str | None) -> bool:
 def _numbered_text(body: str, options: list[tuple[str, str]]) -> str:
     """Degrades WhatsApp Business's native buttons/lists to plain numbered text: Baileys' buttonsMessage/listMessage
     have been unreliable on real devices since WhatsApp restricted native interactive UI to the official Business API
-    (Evolution's own community steers users away from them). The reply id stays the leading token so a free-text
-    numeric or exact-title reply keeps routing through the existing button/list handler (§ orchestrator _handle_reply_id
-    already matches on id; the keyword router also matches plain text) — no behaviour change on the read side, only
-    how the options are rendered on the wire."""
+    (Evolution's own community steers users away from them). The seller answers with the number or the title as plain
+    text; orchestrator.send stores the options in this same order and orchestrator._numbered_option maps the answer
+    back to its reply id before anything reaches the LLM."""
     lines = [body, ""]
     lines += [f"{i}. {title}" for i, (_id, title) in enumerate(options, 1)]
     lines.append("\nResponda com o número da opção.")

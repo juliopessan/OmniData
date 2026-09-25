@@ -36,6 +36,7 @@ PROPOSAL_EMAIL_SUBJECT = "Proposta comercial — {client}"
 PROPOSAL_EMAIL_BODY = ("Olá,\n\nSegue em anexo a proposta comercial para {client}, válida até {valid_until}.\n\n"
                        "Qualquer dúvida ou ajuste, é só responder este e-mail.\n\n{seller}\n{company}")
 PROPOSAL_NO_SCOPE = "\n\nSem escopo descrito: o PDF sai só com os dados do CRM. Pra detalhar, cancele e peça de novo descrevendo o escopo."
+PROPOSAL_NO_SCOPE_SENT = "\n\nSaiu só com os dados do CRM. Pra detalhar o escopo, peça de novo descrevendo o que vai na proposta."
 PROPOSAL_WA_CAPTION = "Proposta para {client} (nº {ref})"
 EXPIRED = "Essa confirmação expirou. Peça de novo se ainda quiser."
 ALREADY_DONE = "Isso já foi feito."
