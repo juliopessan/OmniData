@@ -25,6 +25,7 @@ from ..llm.base import LlmClient
 from ..llm.fallback import FallbackLlmClient
 from ..llm.openai_chat import OpenAIChatClient
 from ..llm.transcribe import OpenAITranscriber, Transcriber
+from ..mailer.gmail import GmailSender
 from ..rag.chroma import ChromaStore, VectorStore
 from ..rag.embeddings import Embeddings, OpenAIEmbeddings
 
@@ -78,6 +79,12 @@ def build_vector_store(s: Settings) -> VectorStore | None:
     return ChromaStore(s.chroma_url, s.chroma_collection)
 
 
+def build_emailer(s: Settings) -> GmailSender | None:
+    if not (s.gmail_user and s.gmail_app_password):
+        return None  # Vela then reports "e-mail indisponível" and (if asked) sends only via WhatsApp
+    return GmailSender(s.gmail_user, s.gmail_app_password, s.gmail_from_name)
+
+
 async def _locked(key: int, fn):  # type: ignore[no-untyped-def]
     try:
         with connect(direct=True) as conn, advisory_lock(conn, key):
@@ -94,7 +101,7 @@ async def run(s: Settings | None = None) -> None:
     gw = EvolutionGateway(s.evolution_api_url, s.evolution_api_key, s.evolution_instance)
     hs = HubSpotClient(s.hubspot_access_token, rps=s.hubspot_rps, search_rps=s.hubspot_search_rps) if s.hubspot_access_token else None
     deps = Deps(gateway=gw, writer=HubSpotWriter(hs) if hs else None, llm=build_llm(s), settings=s, transcriber=build_transcriber(s),
-                embeddings=build_embeddings(s), vector_store=build_vector_store(s))
+                embeddings=build_embeddings(s), vector_store=build_vector_store(s), emailer=build_emailer(s))
 
     async def ingest_and_alert() -> None:
         async def job(conn):  # type: ignore[no-untyped-def]

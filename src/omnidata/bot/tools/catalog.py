@@ -74,6 +74,13 @@ class UndoLast(BaseModel):
     pass
 
 
+class SendProposal(BaseModel):
+    deal: str = Field(min_length=2, max_length=120)
+    summary: str = Field(min_length=5, max_length=1500)  # escopo/itens em texto livre — não há cadastro de produtos/preços
+    recipient_email: str = Field(min_length=5, max_length=254, pattern=r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+    channel: Literal["email", "whatsapp", "both"] = "both"
+
+
 TOOLS: dict[str, tuple[type[BaseModel], str]] = {
     "get_kpis": (Period, "Win rate com intervalo de confiança, ganho, ciclo e ticket do período."),
     "get_quota_status": (Period, "Atingimento da meta, gap, cobertura de pipeline."),
@@ -102,6 +109,9 @@ TOOLS: dict[str, tuple[type[BaseModel], str]] = {
     "create_task": (CreateTask, "Criar uma tarefa em um negócio."),
     "propose_deal_update": (ProposeDealUpdate, "Propor alteração de etapa, data de fechamento ou valor (exige confirmação)."),
     "undo_last": (UndoLast, "Desfazer a última ação registrada (até 24h)."),
+    "send_proposal": (SendProposal, "Monta uma proposta comercial em PDF pro negócio (valor vem do CRM, escopo é o que "
+                      "o vendedor descrever) e manda pro cliente por e-mail e/ou como documento no WhatsApp. Exige "
+                      "confirmação antes de sair; o e-mail do destinatário é sempre informado no pedido, nunca inventado."),
 }
 READ_TOOLS = {"get_forecast", "get_kpis", "get_quota_status", "get_team_status", "get_pipeline_summary", "get_deal", "list_deals_needing_action", "get_morning_brief", "get_data_quality", "get_pains", "get_recurring_terms", "get_demand_types", "get_systems_landscape", "get_segment_insights", "get_insight_coverage", "get_insight_digest", "get_fix_queue", "get_playbook", "search_meeting_notes", "get_goal_status"}
 

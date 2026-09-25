@@ -33,14 +33,14 @@ export default function Home() {
             <Eyebrow>Observatório · inteligência de vendas no WhatsApp</Eyebrow>
             <h1 className="display">Seu time <DecryptText text="não abre" startDelay={150} /> o CRM. Mas <DecryptText text="responde" className="voice" startDelay={950} /> o WhatsApp.</h1>
             <p className="lede">
-              Conheça o Observatório: nove assessores de IA que vivem na conversa do seu vendedor, atualizam o HubSpot por ele
+              Conheça o Observatório: dez assessores de IA que vivem na conversa do seu vendedor, atualizam o HubSpot por ele
               e avisam o que precisa de ação antes que o negócio esfrie.
             </p>
             <div className="actions">
               <Link href="/cadastro" className="btn">Começar agora →</Link>
               <Link href="#equipe" className="btn ghost">Conhecer a equipe</Link>
             </div>
-            <SpinVerb verbs={["Orion coordenando", "Vega calculando a meta", "Altair varrendo o funil", "Lyra registrando no HubSpot", "Argus auditando os dados", "Nova preparando o script", "Atlas lembrando a reunião"]} />
+            <SpinVerb verbs={["Orion coordenando", "Vega calculando a meta", "Altair varrendo o funil", "Lyra registrando no HubSpot", "Argus auditando os dados", "Nova preparando o script", "Atlas lembrando a reunião", "Vela montando a proposta"]} />
           </div>
 
           <div className="ledger" aria-label="Números de exemplo, calculados a partir de dados sintéticos">
@@ -88,7 +88,7 @@ export default function Home() {
           <div className="wrap stack" style={{ gap: 32 }}>
             <div className="stack">
               <Eyebrow>Conheça o Observatório</Eyebrow>
-              <h2 className="h2">Nove assessores. Uma conversa. Cada um assina o que fez.</h2>
+              <h2 className="h2">Dez assessores. Uma conversa. Cada um assina o que fez.</h2>
               <p className="lede">Orion lê o pedido e divide o trabalho. Cada especialista só usa as ferramentas que são dele, e você recebe tudo numa mensagem, com o nome de quem cuidou de cada parte.</p>
             </div>
             <TeamGrid />

@@ -18,7 +18,7 @@ O único lugar onde o vendedor já está, todo dia, sem precisar de treinamento 
 
 ## O que o OmniData faz
 
-O OmniData leva a inteligência do HubSpot para dentro dessa conversa. Quem cuida dela é o **Observatório**, uma equipe de nove assessores de IA — Orion coordena, e cada especialista (Vega, Altair, Lyra, Aurora, Argus, Polaris, Nova, Atlas) responde só o que é da própria área, assinando a própria parte.
+O OmniData leva a inteligência do HubSpot para dentro dessa conversa. Quem cuida dela é o **Observatório**, uma equipe de dez assessores de IA — Orion coordena, e cada especialista (Vega, Altair, Lyra, Aurora, Argus, Polaris, Nova, Atlas, Vela) responde só o que é da própria área, assinando a própria parte.
 
 1. O vendedor manda uma mensagem no WhatsApp — texto ou áudio, pergunta ou "nota na Acme: CFO aprovou o escopo".
 2. Orion lê o pedido, decide quem da equipe resolve (às vezes mais de um especialista, num plano curto) e devolve **uma resposta só**, assinada por quem cuidou de cada parte.
@@ -46,7 +46,7 @@ O painel web (`web/`) por padrão mostra dados sintéticos calculados no navegad
 | Front-end (landing, funcionalidades, preços, login, cadastro, dashboard) | Pronto, no ar na Vercel |
 | Banco, migrations, views `gold`/`serving`, backup | Pronto e testado contra Postgres real |
 | Ingestão do HubSpot (backfill retomável, incremental, histórico, snapshots, `audit`) | Pronto; **testado só com fixtures e HubSpot simulado** |
-| Bot no WhatsApp (webhook, fila, orquestrador, alertas, resumo matinal e recap noturno), via Evolution API (ADR 0008) | **Em produção**, num VPS real, com `api` + `worker` + Postgres, HTTPS via Traefik ([docs/deploy-vps.md](docs/deploy-vps.md)). Verificado com conversas reais: ativação, escritas com confirmação, áudio, meta pessoal e os nove especialistas respondendo com LLM real, 0 erro — contra a base seedada (`dev seed`), ainda não HubSpot real |
+| Bot no WhatsApp (webhook, fila, orquestrador, alertas, resumo matinal e recap noturno), via Evolution API (ADR 0008) | **Em produção**, num VPS real, com `api` + `worker` + Postgres, HTTPS via Traefik ([docs/deploy-vps.md](docs/deploy-vps.md)). Verificado com conversas reais: ativação, escritas com confirmação, áudio, meta pessoal e os dez especialistas respondendo com LLM real, 0 erro — contra a base seedada (`dev seed`), ainda não HubSpot real |
 | Observatório (Orion planeja, especialistas executam; resolutivo — resolve referências à troca anterior, ex. "essas causas") | Pronto. Avaliação do planejador: conjunto de 68 frases + 17 inéditas (`omnidata eval planner`) |
 | Cockpit de Vendas (`/dashboard/cockpit`): conversas reais do WhatsApp, para o gestor acompanhar sem abrir o telefone de ninguém | Pronto e em produção |
 | Observabilidade (Langfuse, `telemetry.py`, opcional): um trace por mensagem, com custo, latência e o plano que o Orion decidiu | Pronto e em produção, verificado contra uma instância real |
@@ -54,6 +54,7 @@ O painel web (`web/`) por padrão mostra dados sintéticos calculados no navegad
 | Upload de datasets (CSV/XLSX de negócios e metas): página, API e CLI | Pronto; testado com uma exportação real do HubSpot (1000 negócios) e no navegador |
 | Airbyte como camada de conectores (HubSpot + outras fontes por mapeamento) | Pronto no código; **nunca rodou contra um Airbyte real** ([docs/airbyte.md](docs/airbyte.md)) |
 | Insights de empresas (dores, termos, ERPs, tipo de demanda), com os agentes; painel `/dashboard/insights` | Pronto; testado com dataset sintético e com um export real do HubSpot |
+| Propostas em PDF por e-mail e WhatsApp (Vela) | Pronto e testado (unitário + e2e contra Postgres real); **`send_document` (WhatsApp) e o SMTP do Gmail em produção ainda não verificados contra uma instância/conta reais** |
 | dbt | Não implementado (ADR 0002) |
 
 Veja **[docs/go-live.md](docs/go-live.md)** para o que ainda depende das suas próprias contas (HubSpot, Meta/número de WhatsApp).
@@ -71,6 +72,7 @@ Veja **[docs/go-live.md](docs/go-live.md)** para o que ainda depende das suas pr
 | **Polaris** | Coach de Qualidade: transforma a auditoria em fila de correção por vendedor (só lê; a Lyra grava) | `get_fix_queue` |
 | **Nova** | Coach de Vendas: script e quebra de objeção a partir do que já foi registrado | `get_playbook`, `search_meeting_notes` |
 | **Atlas** | Memória de Reuniões: busca por assunto no que já foi dito, sempre citação real | `search_meeting_notes` |
+| **Vela** | Especialista em Propostas: monta um PDF a partir do negócio e manda pro cliente por e-mail e/ou WhatsApp, sempre com confirmação | `send_proposal` |
 
 O LLM só *propõe* o plano; o código valida (allowlist por especialista, no máximo 1 escrita e por último). Endereçamento direto: “Vega, como estou na meta?”. `uv run omnidata team` lista a equipe; `team export` gera `web/src/lib/team.json` (um teste garante a sincronia). `search_meeting_notes` é a única ferramenta com dois donos legítimos (Nova e Atlas) — a resposta é assinada por quem o Orion realmente planejou, não por um dono fixo.
 
@@ -111,6 +113,8 @@ Depois, `EVOLUTION_INSTANCE=omnidata` no `.env`. Sem assinatura nativa de webhoo
 
 **Memória de reuniões (Atlas, ADR 0009):** transcrições de reunião viram embeddings num Chroma auto-hospedado, só como índice semântico — quem decide o que o vendedor pode ver continua sendo o Postgres (`Principal.owner_clause()`), checado de novo em cada trecho antes de virar resposta, nunca o Chroma sozinho.
 
+**Propostas (Vela):** "manda uma proposta pra Acme: licença anual, 10 usuários, pro email joao@acme.com" monta um PDF no visual do Ledger — nome e valor vêm do negócio no CRM, o escopo é o que você descrever, não existe cadastro de produtos/preços — e pede confirmação antes de mandar por e-mail (uma conta Gmail única da empresa, `mailer/gmail.py`) e/ou como documento aqui mesmo no WhatsApp. Nunca escreve no HubSpot, então funciona mesmo sem `HUBSPOT_ACCESS_TOKEN`; sem e-mail configurado, degrada pra WhatsApp-only. Depois de enviado não tem Desfazer — não dá pra tirar um e-mail da caixa de entrada de alguém.
+
 ## Avaliação do planejador (Orion)
 
 `uv run omnidata eval planner` mede se cada pedido vai para o especialista e a ferramenta certos, sem modelo-juiz: a resposta esperada é objetiva (agente + ferramenta), então a comparação é exata. O conjunto de frases fica em `src/omnidata/evals/planner_cases.yaml` (nomes de negócios do export real do HubSpot e alguns fictícios) e há um conjunto separado, `planner_holdout.yaml`, de frases que **nunca** foram usadas para ajustar as regras.
@@ -138,6 +142,8 @@ src/omnidata/
   forecast/               previsão estatística determinística (Vega, ADR 0007)
   hygiene/                fila de correção de dados (Polaris)
   transcripts/            transcrições sintéticas de reunião para teste (synth.py, ingest.py)
+  proposals/              PDF de proposta (Vela): template.py (Jinja2) + pdf.py (WeasyPrint)
+  mailer/                 envio de e-mail (Vela): gmail.py, SMTP + app password
   telemetry.py            observabilidade (Langfuse, opcional)
   crm/hubspot/            cliente resiliente, mapeamento, escrita
   datasets/               upload: leitura CSV/XLSX, validação, importador
@@ -184,7 +190,7 @@ O que o arquivo de negócios precisa ter (nomes de colunas do HubSpot em pt-BR o
 
 ### B. Back-end com banco local
 
-Pré-requisitos: Python 3.12, [uv](https://docs.astral.sh/uv/), [Docker](https://docs.docker.com/get-docker/) e a [Supabase CLI](https://supabase.com/docs/guides/cli) (fornecem o Postgres); `ffmpeg` só se for testar áudios.
+Pré-requisitos: Python 3.12, [uv](https://docs.astral.sh/uv/), [Docker](https://docs.docker.com/get-docker/) e a [Supabase CLI](https://supabase.com/docs/guides/cli) (fornecem o Postgres); `ffmpeg` só se for testar áudios. Testar propostas em PDF (Vela) exige o Pango do [WeasyPrint](https://doc.courtbouillon.org/weasyprint/stable/first_steps.html) instalado no sistema (`brew install pango` no macOS; no Homebrew do Apple Silicon, rode com `DYLD_FALLBACK_LIBRARY_PATH=/opt/homebrew/lib` na frente do comando pra ele achar a lib); sem isso, `uv sync` funciona normalmente, só os testes de `proposals/` e o envio de proposta falham ao importar.
 
 ```bash
 git clone https://github.com/juliopessan/OmniData.git && cd OmniData
@@ -232,6 +238,7 @@ uv run omnidata insights analyze negocios.csv                             # insi
 | `LLM_PROVIDER`, `ANTHROPIC_API_KEY` / `OPENAI_API_KEY` / `DEEPSEEK_API_KEY` | planejamento e narração; `OPENAI_API_KEY` também transcreve áudios | opcional (sem elas: modo degradado) |
 | `OPENROUTER_API_KEY`, `OPENROUTER_MODEL_ROUTER`, `OPENROUTER_MODEL_NARRATOR` | fallback: usado se o `LLM_PROVIDER` falhar (ou sozinho, sem um principal) | opcional |
 | `LANGFUSE_PUBLIC_KEY`, `LANGFUSE_SECRET_KEY`, `LANGFUSE_BASE_URL` | observabilidade (traces por mensagem) | opcional |
+| `GMAIL_USER`, `GMAIL_APP_PASSWORD`, `GMAIL_FROM_NAME` | propostas por e-mail (Vela) | opcional (sem elas: só WhatsApp) |
 | `CHROMA_URL`, `CHROMA_COLLECTION`, `EMBEDDINGS_MODEL` | memória de reuniões (Atlas, ADR 0009) | só se usar Atlas |
 | `ADMIN_API_TOKEN`, `CORS_ORIGINS` | upload de datasets pela API | só para usar a página Datasets contra a API |
 | `INGEST_MODE` | `direct` (padrão) ou `airbyte` | não |

@@ -18,7 +18,7 @@ from omnidata.llm.base import ToolCall
 from omnidata.security.principal import resolve_by_phone
 
 from ..conftest import TEST_DSN
-from ..fakes import FakeEmbeddings, FakeGateway, FakeLlm, FakeVectorStore, FakeWriter
+from ..fakes import FakeEmailer, FakeEmbeddings, FakeGateway, FakeLlm, FakeVectorStore, FakeWriter
 from ..helpers import add_user, inbound
 
 REP_A, REP_B, MGR = "+5511900000001", "+5511900000002", "+5511900000009"
@@ -48,8 +48,8 @@ async def say(conn, deps, phone, text=None, n=[0], **kw):  # noqa: B006
     return deps.gateway.last
 
 
-def deps(gw, w, s, llm=None):
-    return Deps(gateway=gw, writer=w, llm=llm, settings=s)
+def deps(gw, w, s, llm=None, emailer=None):
+    return Deps(gateway=gw, writer=w, llm=llm, settings=s, emailer=emailer)
 
 
 async def test_unknown_number_gets_refusal_and_no_data(world):  # FR-BOT-1 AC
@@ -303,6 +303,53 @@ async def test_free_text_pode_equals_confirm_and_cancela_equals_cancel(world):
     assert "Feito" in (await say(conn, d, REP_A, "pode"))["body"] and len(w.updates) == 1
     await say(conn, d, REP_A, "muda")
     assert "Cancelado" in (await say(conn, d, REP_A, "cancela"))["body"] and len(w.updates) == 1
+
+
+async def test_send_proposal_requires_confirmation_then_emails_and_sends_whatsapp_document(world):  # Vela
+    conn, gw, w, s, _ = world
+    deal = await _own_deal(conn)
+    emailer = FakeEmailer()
+    d = deps(gw, w, s, FakeLlm(tool=ToolCall("send_proposal", {"deal": deal["hs_deal_id"], "summary": "Licença anual, 10 usuários.",
+                                                               "recipient_email": "cliente@acme.com", "channel": "both"})), emailer=emailer)
+    out = await say(conn, d, REP_A, "manda uma proposta pro cliente")
+    assert [b[1] for b in out["buttons"]] == ["Confirmar", "Cancelar"] and emailer.sent == []
+    done = await say(conn, d, REP_A, reply=out["buttons"][0][0])
+    assert "Enviado" in done["body"] and not done.get("buttons")  # no Undo — nothing to revert once it's sent
+    assert len(emailer.sent) == 1
+    assert emailer.sent[0]["to"] == "cliente@acme.com"
+    assert emailer.sent[0]["attachment"][2] == "application/pdf"
+    assert emailer.sent[0]["attachment"][1].startswith(b"%PDF-")
+    docs = [m for m in gw.sent if m["type"] == "document"]
+    assert len(docs) == 1 and docs[0]["to"] == REP_A and docs[0]["data"].startswith(b"%PDF-")
+    with conn.cursor() as cur:
+        cur.execute("select status from app.pending_action where kind='send_proposal'")
+        assert cur.fetchone()["status"] == "executed"
+        cur.execute("select event from app.audit_log where event='send_proposal'")
+        assert cur.fetchone() is not None
+
+
+async def test_send_proposal_free_text_confirm_dispatches_to_its_own_confirm_path(world):  # Vela, not the HubSpot confirm()
+    conn, gw, w, s, _ = world
+    deal = await _own_deal(conn)
+    emailer = FakeEmailer()
+    d = deps(gw, w, s, FakeLlm(tool=ToolCall("send_proposal", {"deal": deal["hs_deal_id"], "summary": "Escopo combinado.",
+                                                               "recipient_email": "cliente@acme.com", "channel": "email"})), emailer=emailer)
+    await say(conn, d, REP_A, "manda a proposta")
+    out = await say(conn, d, REP_A, "pode")
+    assert "Enviado" in out["body"] and len(emailer.sent) == 1 and w.updates == []  # never touched HubSpot
+
+
+async def test_send_proposal_without_emailer_reports_email_down_and_marks_failed(world):
+    conn, gw, w, s, _ = world
+    deal = await _own_deal(conn)
+    d = deps(gw, w, s, FakeLlm(tool=ToolCall("send_proposal", {"deal": deal["hs_deal_id"], "summary": "Escopo.",
+                                                               "recipient_email": "cliente@acme.com", "channel": "email"})))  # no emailer
+    out = await say(conn, d, REP_A, "manda a proposta")
+    done = await say(conn, d, REP_A, reply=out["buttons"][0][0])
+    assert "e-mail não está configurado" in done["body"].lower()
+    with conn.cursor() as cur:
+        cur.execute("select status from app.pending_action where kind='send_proposal'")
+        assert cur.fetchone()["status"] == "failed"
 
 
 async def test_stale_undo_refuses_when_colleague_changed_value(world):  # FR-WRT-3 / D10

@@ -36,9 +36,21 @@ class FakeGateway:
     async def download_media(self, media_id: str) -> tuple[bytes, str]:
         return b"audio", "audio/ogg"
 
+    async def send_document(self, to: str, filename: str, data: bytes, mime: str, caption: str = "") -> str:
+        self.sent.append({"to": to, "type": "document", "filename": filename, "data": data, "mime": mime, "caption": caption})
+        return "wamid.5"
+
     @property
     def last(self) -> dict[str, Any]:
         return self.sent[-1]
+
+
+class FakeEmailer:
+    def __init__(self) -> None:
+        self.sent: list[dict[str, Any]] = []
+
+    async def send(self, to: str, subject: str, body: str, attachment: tuple[str, bytes, str] | None = None) -> None:
+        self.sent.append({"to": to, "subject": subject, "body": body, "attachment": attachment})
 
 
 class FakeWriter:

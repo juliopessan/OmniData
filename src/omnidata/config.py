@@ -70,6 +70,9 @@ class Settings(BaseSettings):
     langfuse_public_key: str = ""      # observability (telemetry.py): all three empty = tracing off, same degrade-to-none pattern as every other optional integration
     langfuse_secret_key: str = ""
     langfuse_base_url: str = ""        # self-hosted or regional Langfuse Cloud URL, e.g. https://cloud.langfuse.com
+    gmail_user: str = ""                # single company Gmail account (mailer/gmail.py); empty = "vela" degrades to whatsapp-only
+    gmail_app_password: str = ""        # Google Account -> Security -> App passwords (needs 2-Step Verification on)
+    gmail_from_name: str = "OmniData"
 
     @property
     def direct_url(self) -> str:

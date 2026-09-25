@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Proposta — {{ deal_name }}</title>
+<style>
+  /* Tokens do Ledger (web/src/app/globals.css), embutidos porque o WeasyPrint não busca CSS externo com
+     facilidade. Sempre modo claro — é um documento impresso, nunca o tema escuro do produto. */
+  @page { size: A4; margin: 24mm 20mm; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; font-size: 11pt; line-height: 1.55; color: #11110f; background: #f2efe8; }
+  .eyebrow { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 9pt; letter-spacing: 0.14em; text-transform: uppercase; color: #9c988e; margin-bottom: 6mm; }
+  h1 { font-size: 24pt; font-weight: 800; letter-spacing: -0.02em; margin-bottom: 4mm; }
+  .lede { color: #55524b; max-width: 60ch; margin-bottom: 10mm; }
+  .ledger { background: #14140f; color: #efece4; padding: 8mm; margin-bottom: 10mm; }
+  .ledger .row { display: flex; justify-content: space-between; gap: 8mm; padding: 3mm 0; border-top: 1px solid #2c2b25; }
+  .ledger .row:first-child { border-top: none; }
+  .ledger .k { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 9pt; letter-spacing: 0.1em; text-transform: uppercase; color: #85817a; }
+  .ledger .v { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13pt; font-variant-numeric: tabular-nums; font-weight: 700; }
+  .scope h2 { font-size: 11pt; letter-spacing: 0.1em; text-transform: uppercase; color: #9c988e; margin-bottom: 4mm; }
+  .scope p { white-space: pre-wrap; }
+  .foot { margin-top: 16mm; padding-top: 6mm; border-top: 1px solid #d6d2c8; color: #9c988e; font-size: 9pt; }
+</style>
+</head>
+<body>
+  <p class="eyebrow">Observatório · Proposta comercial</p>
+  <h1>{{ deal_name }}</h1>
+  <p class="lede">Preparada por {{ seller_name }} em {{ date }}.</p>
+
+  <div class="ledger">
+    <div class="row"><span class="k">Valor proposto</span><span class="v">{{ amount }}</span></div>
+    <div class="row"><span class="k">Validade</span><span class="v">15 dias</span></div>
+  </div>
+
+  <div class="scope">
+    <h2>Escopo</h2>
+    <p>{{ summary }}</p>
+  </div>
+
+  <p class="foot">Gerado pelo Observatório (OmniData) a partir dos dados do negócio no CRM. Sujeita a confirmação e ajuste de condições comerciais.</p>
+</body>
+</html>

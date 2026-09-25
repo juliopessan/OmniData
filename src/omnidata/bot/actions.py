@@ -14,9 +14,13 @@ from psycopg.types.json import Jsonb
 from ..crm.hubspot.client import HubSpotError
 from ..crm.hubspot.writeback import HubSpotWriter
 from ..db import upsert
+from ..mailer.gmail import EmailError, GmailSender
+from ..proposals.pdf import render_pdf
+from ..proposals.template import render_html
 from ..security.principal import Principal
 from . import repo
 from . import strings_ptbr as S
+from .gateway import GatewayError, MessagingGateway
 
 Conn = psycopg.Connection[Any]
 UNDO_WINDOW = timedelta(hours=24)
@@ -119,13 +123,13 @@ def _executed(conn: Conn, aid: str, after: dict[str, Any], now: datetime) -> Non
                     "where id=%s", (Jsonb(after), Jsonb({"ok": True}), now, now + UNDO_WINDOW, aid))
 
 
-def _fail(conn: Conn, aid: str, p: Principal, kind: str) -> Reply:
+def _fail(conn: Conn, aid: str, p: Principal, kind: str, message: str = S.HUBSPOT_DOWN) -> Reply:
     conn.rollback()
     with conn.cursor() as cur:
         cur.execute("update app.pending_action set status='failed', hs_response=%s where id=%s", (Jsonb({"ok": False}), aid))
     audit(conn, p.user_id, "write_failed", {"action_id": aid, "kind": kind})
     conn.commit()
-    return Reply(S.HUBSPOT_DOWN)  # never a silent success
+    return Reply(message)  # never a silent success
 
 
 # ---------------- high-risk: deal update (propose -> confirm) -----------------
@@ -171,6 +175,62 @@ def propose_deal_update(conn: Conn, p: Principal, deal_query: str, field_name: s
     conn.commit()
     return Reply(S.confirm_update(deal["name"], field_name, c["old"], c["new"]),
                  buttons=[(f"act:confirm:{aid}", S.BTN_CONFIRM), (f"act:adjust:{aid}", S.BTN_ADJUST), (f"act:cancel:{aid}", S.BTN_CANCEL)])
+
+
+# ---------------- high-risk: send proposal (Vela; propose -> confirm, own confirm path) -----------------
+def propose_send_proposal(conn: Conn, p: Principal, deal_query: str, summary: str, recipient_email: str, channel: str,
+                          *, deal_id: str | None = None) -> Reply:
+    deal, ask = (repo.get_deal_scoped(conn, p, deal_id), None) if deal_id else _resolve_deal(conn, p, deal_query)
+    if deal is None:
+        return ask or Reply(S.NO_MATCH_DEAL.format(q=deal_query))
+    params = {"deal_id": deal["hs_deal_id"], "deal_name": deal["name"], "amount": str(deal["amount"] or 0),
+              "summary": summary, "recipient_email": recipient_email, "channel": channel}
+    aid = _new_pending(conn, p, "send_proposal", params, "high", None, "proposed", PENDING_TTL)
+    conn.commit()
+    where = {"email": f"por e-mail ({recipient_email})", "whatsapp": "aqui no WhatsApp", "both": f"por e-mail ({recipient_email}) e aqui no WhatsApp"}[channel]
+    return Reply(f"Confirma o envio da proposta de *{deal['name']}* ({S.brl(deal['amount'])}) {where}?",
+                 buttons=[(f"act:confirm:{aid}", S.BTN_CONFIRM), (f"act:cancel:{aid}", S.BTN_CANCEL)])
+
+
+async def confirm_send_proposal(conn: Conn, p: Principal, aid: str, *, emailer: GmailSender | None, gateway: MessagingGateway) -> Reply:
+    """Own confirm path — `confirm()` above is hard-coded to the HubSpot deal-update write, and this write never
+    touches HubSpot at all (nothing to undo, so no undo_deadline/Undo button on the receipt either)."""
+    with conn.cursor() as cur:
+        cur.execute("update app.pending_action set status='confirmed' where id=%s and user_id=%s and status='proposed' "
+                    "and expires_at > now() returning *", (aid, p.user_id))
+        a = cur.fetchone()
+    conn.commit()
+    if not a:
+        cur_a = _own_action(conn, p, aid)
+        conn.commit()
+        if cur_a and cur_a["status"] in ("executed", "confirmed"):
+            return Reply(S.ALREADY_DONE)
+        return Reply(S.EXPIRED)
+    prm = a["params"]
+    html = render_html(prm["deal_name"], S.brl(float(prm["amount"])), prm["summary"], p.display_name or "Vendedor")
+    pdf = render_pdf(html)
+    filename = f"proposta-{prm['deal_id']}.pdf"
+    sent: list[str] = []
+    try:
+        if prm["channel"] in ("email", "both"):
+            if not emailer:
+                return _fail(conn, aid, p, "send_proposal", S.EMAIL_DOWN)
+            await emailer.send(prm["recipient_email"], f"Proposta — {prm['deal_name']}",
+                                f"Segue em anexo a proposta de {prm['deal_name']}.", attachment=(filename, pdf, "application/pdf"))
+            sent.append("e-mail")
+        if prm["channel"] in ("whatsapp", "both"):
+            with conn.cursor() as cur:
+                cur.execute("select phone_e164 from app.app_user where id=%s", (p.user_id,))
+                phone = cur.fetchone()["phone_e164"]
+            await gateway.send_document(phone, filename, pdf, "application/pdf", caption=f"Proposta: {prm['deal_name']}")
+            sent.append("WhatsApp")
+    except (EmailError, GatewayError):
+        return _fail(conn, aid, p, "send_proposal", S.PROPOSAL_FAILED)
+    now = datetime.now(UTC)
+    _executed(conn, aid, {"sent_via": sent}, now)
+    audit(conn, p.user_id, "send_proposal", {"action_id": aid, "deal_id": prm["deal_id"], "channel": prm["channel"]})
+    conn.commit()
+    return Reply(f"Enviado ✅ *{prm['deal_name']}*: proposta mandada via {' e '.join(sent)}.")
 
 
 def _own_action(conn: Conn, p: Principal, aid: str) -> dict[str, Any] | None:
@@ -234,6 +294,8 @@ async def undo(conn: Conn, w: HubSpotWriter, p: Principal, aid: str) -> Reply:
         return Reply(S.ALREADY_DONE)
     if a["undo_deadline"] and a["undo_deadline"] < datetime.now(UTC):
         return Reply(S.UNDO_EXPIRED)
+    if a["kind"] not in ("add_note", "create_task", "update_deal"):
+        return Reply(S.ALREADY_DONE)  # e.g. send_proposal: nothing to revert, already left the building
     try:
         if a["kind"] in ("add_note", "create_task"):
             await w.archive(a["after_state"]["object_type"], a["after_state"]["object_id"])

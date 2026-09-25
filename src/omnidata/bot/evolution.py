@@ -162,6 +162,16 @@ class EvolutionGateway:
         import base64
         return base64.b64decode(b64), str(mime)
 
+    async def send_document(self, to: str, filename: str, data: bytes, mime: str, caption: str = "") -> str:
+        """OPEN (Vela): unverified against a real instance, same status download_media had before its own smoke
+        test — the body shape (`mediatype`/`fileName`/`media` base64) follows Evolution's documented convention for
+        /message/sendMedia, but no example payload is published. Fails as a clean GatewayError if the shape is wrong;
+        confirm against a real instance before relying on this, and fix the field names the same way set_webhook was."""
+        import base64
+        d = await self._post("/message/sendMedia", {"number": to.lstrip("+"), "mediatype": "document", "mimetype": mime,
+                                                     "fileName": filename, "caption": caption, "media": base64.b64encode(data).decode()})
+        return self._msg_id(d)
+
     async def send_presence(self, to: str, composing: bool, delay_ms: int = 1200) -> None:
         """Confirmed 2026-09-23 against the real instance: `delay` (ms) is required, undocumented — omitting it answers
         400 (`instance requires property "delay"`). Still best-effort (never raises): a bad presence call must never

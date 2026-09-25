@@ -89,10 +89,19 @@ ATLAS = Agent(
     ("o que ficou combinado com a Acme?", "o que o cliente falou sobre o preço na última reunião?"),
 )
 
-TEAM: dict[str, Agent] = {a.key: a for a in (ORION, VEGA, ALTAIR, LYRA, AURORA, ARGUS, POLARIS, NOVA, ATLAS)}
+VELA = Agent(
+    "vela", "Vela", "Especialista em Propostas",
+    "Monta a proposta comercial em PDF a partir do negócio (valor vem do CRM, escopo é o que você descrever) e "
+    "manda pro cliente por e-mail e/ou como documento aqui no WhatsApp — sempre com sua confirmação antes de sair.",
+    "Formal e objetiva. Confere cada detalhe em voz alta antes de mandar.",
+    ("send_proposal",),
+    ("manda uma proposta pra Acme: licença anual pra 10 usuários, pro email joao@acme.com", "envia o orçamento da Acme por e-mail e WhatsApp"),
+)
+
+TEAM: dict[str, Agent] = {a.key: a for a in (ORION, VEGA, ALTAIR, LYRA, AURORA, ARGUS, POLARIS, NOVA, ATLAS, VELA)}
 SPECIALISTS: dict[str, Agent] = {k: a for k, a in TEAM.items() if a.tools}
 TOOL_OWNER: dict[str, str] = {t: a.key for a in SPECIALISTS.values() for t in a.tools}
-WRITE_TOOLS = frozenset({"add_note", "create_task", "propose_deal_update", "undo_last", "set_goal"})
+WRITE_TOOLS = frozenset({"add_note", "create_task", "propose_deal_update", "undo_last", "set_goal", "send_proposal"})
 MAX_STEPS = 3
 
 

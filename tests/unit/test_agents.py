@@ -14,7 +14,7 @@ def test_every_tool_has_exactly_one_owner_and_orion_owns_none():
     from omnidata.bot.tools.catalog import TOOLS
     assert set(T.TOOL_OWNER) == set(TOOLS)
     assert T.ORION.tools == () and "orion" not in T.SPECIALISTS
-    assert len({a.name for a in T.TEAM.values()}) == len(T.TEAM) == 9
+    assert len({a.name for a in T.TEAM.values()}) == len(T.TEAM) == 10
 
 
 def test_valid_multi_step_plan_read_then_write():

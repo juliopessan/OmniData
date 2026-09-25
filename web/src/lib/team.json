@@ -145,6 +145,20 @@
         "o que ficou combinado com a Acme?",
         "o que o cliente falou sobre o preço na última reunião?"
       ]
+    },
+    {
+      "key": "vela",
+      "name": "Vela",
+      "title": "Especialista em Propostas",
+      "tagline": "Monta a proposta comercial em PDF a partir do negócio (valor vem do CRM, escopo é o que você descrever) e manda pro cliente por e-mail e/ou como documento aqui no WhatsApp — sempre com sua confirmação antes de sair.",
+      "persona": "Formal e objetiva. Confere cada detalhe em voz alta antes de mandar.",
+      "tools": [
+        "send_proposal"
+      ],
+      "examples": [
+        "manda uma proposta pra Acme: licença anual pra 10 usuários, pro email joao@acme.com",
+        "envia o orçamento da Acme por e-mail e WhatsApp"
+      ]
     }
   ]
 }

@@ -24,6 +24,7 @@ from ..llm import prompts
 from ..llm.base import LlmClient, LlmError, Usage
 from ..llm.guard import numbers_ok
 from ..llm.transcribe import TranscribeError, Transcriber
+from ..mailer.gmail import GmailSender
 from ..rag.chroma import VectorStore
 from ..rag.embeddings import Embeddings
 from ..security.pii_masking import mask_pii
@@ -51,6 +52,7 @@ class Deps:
     transcriber: Transcriber | None = None
     embeddings: Embeddings | None = None
     vector_store: VectorStore | None = None
+    emailer: GmailSender | None = None
     today: date | None = None
 
 
@@ -278,8 +280,13 @@ async def _handle_reply_id(conn: Conn, deps: Deps, p: Principal, rid: str) -> Re
         return Reply(S.tpl_deal(_deal_view(deal)))
     if parts[0] == "act" and len(parts) == 3:
         verb, ident = parts[1], parts[2]
-        if verb == "confirm" and deps.writer:
-            return await actions.confirm(conn, deps.writer, p, ident)
+        if verb == "confirm":
+            pending = actions._own_action(conn, p, ident)
+            conn.commit()
+            if pending and pending["kind"] == "send_proposal":
+                return await actions.confirm_send_proposal(conn, p, ident, emailer=deps.emailer, gateway=deps.gateway)
+            if deps.writer:
+                return await actions.confirm(conn, deps.writer, p, ident)
         if verb == "cancel":
             return actions.cancel(conn, p, ident)
         if verb == "undo" and deps.writer:
@@ -463,11 +470,13 @@ async def run_plan(conn: Conn, deps: Deps, p: Principal, steps: list[Step], orig
 async def _free_text_confirmation(conn: Conn, deps: Deps, p: Principal, confirm: bool) -> Reply:
     """'pode' / 'cancela' are equivalent to the buttons (FR-WRT-2)."""
     with conn.cursor() as cur:
-        cur.execute("select id from app.pending_action where user_id=%s and status='proposed' and expires_at > now() order by created_at desc limit 1", (p.user_id,))
+        cur.execute("select id, kind from app.pending_action where user_id=%s and status='proposed' and expires_at > now() order by created_at desc limit 1", (p.user_id,))
         r = cur.fetchone()
     conn.commit()
     if not r:
         return Reply(S.MENU_BODY, list_rows=[(f"menu:{k}", t, d) for k, t, d in S.MENU_ROWS], list_button=S.MENU_TITLE[:20])
+    if confirm and r["kind"] == "send_proposal":
+        return await actions.confirm_send_proposal(conn, p, str(r["id"]), emailer=deps.emailer, gateway=deps.gateway)
     if confirm and deps.writer:
         return await actions.confirm(conn, deps.writer, p, str(r["id"]))
     return actions.cancel(conn, p, str(r["id"]))
@@ -502,6 +511,8 @@ async def _run_tool_raw(conn: Conn, deps: Deps, p: Principal, tool: str | None, 
         if data is None:
             return Reply(S.NO_MATCH_DEAL.format(q=a.get("query", "")))
         return Reply(await _narrate(conn, deps, p, data, template, T.agent_for_tool(tool), original_text))
+    if tool == "send_proposal":  # sends e-mail/WhatsApp, never touches HubSpot — must also run before the gate below
+        return await _run_write(conn, deps, p, tool, a)
     if not deps.writer:
         return Reply(S.HUBSPOT_DOWN)
     if tool == "undo_last":
@@ -653,7 +664,6 @@ async def _narrate(conn: Conn, deps: Deps, p: Principal, data: dict[str, Any], t
 
 
 async def _run_write(conn: Conn, deps: Deps, p: Principal, tool: str, a: dict[str, Any]) -> Reply:
-    assert deps.writer
     found = repo.find_deals(conn, p, a["deal"])
     if len(found) > 1 and found[0]["name"].lower() != a["deal"].lower():  # ambiguity -> list message, remember intent
         _set_state(conn, p, "pick", {"tool": tool, "args": a})
@@ -666,6 +676,8 @@ async def _run_write(conn: Conn, deps: Deps, p: Principal, tool: str, a: dict[st
 
 
 async def _run_write_with_deal(conn: Conn, deps: Deps, p: Principal, tool: str, a: dict[str, Any], deal_id: str) -> Reply:
+    if tool == "send_proposal":  # never touches HubSpot — no deps.writer needed
+        return actions.propose_send_proposal(conn, p, a["deal"], a["summary"], a["recipient_email"], a["channel"], deal_id=deal_id)
     assert deps.writer
     if tool == "add_note":
         return await actions.add_note(conn, deps.writer, p, a["deal"], a["text"], deal_id=deal_id)
