@@ -6,6 +6,9 @@ import { TeamGrid } from "@/components/TeamGrid";
 import { SpinVerb } from "@/components/SpinVerb";
 import { StoryFilm } from "@/components/StoryFilm";
 import { WorkflowDemo } from "@/components/WorkflowDemo";
+import { Symptoms } from "@/components/Symptoms";
+import { DayTimeline } from "@/components/DayTimeline";
+import { DecryptText } from "@/components/DecryptText";
 import { computeMetrics, brl, pct, pad2 } from "@/lib/metrics";
 
 /**
@@ -28,7 +31,7 @@ export default function Home() {
         <div className="wrap hero" id="hook">
           <div className="stack" style={{ gap: 26 }}>
             <Eyebrow>Observatório · inteligência de vendas no WhatsApp</Eyebrow>
-            <h1 className="display">Seu time não abre o CRM. Mas <span className="voice">responde</span> o WhatsApp.</h1>
+            <h1 className="display">Seu time <DecryptText text="não abre" startDelay={150} /> o CRM. Mas <DecryptText text="responde" className="voice" startDelay={950} /> o WhatsApp.</h1>
             <p className="lede">
               Conheça o Observatório: nove assessores de IA que vivem na conversa do seu vendedor, atualizam o HubSpot por ele
               e avisam o que precisa de ação antes que o negócio esfrie.
@@ -63,20 +66,7 @@ export default function Home() {
               <p className="lede">Dashboard ninguém abre, CRM ninguém atualiza. Sobra um forecast em cima de números que ninguém consegue defender.</p>
             </div>
 
-            <div className="symptoms">
-              {[
-                ["Lyra", "O vendedor atualiza o CRM na sexta à noite, se lembrar.", "Lyra registra a nota ou a tarefa na hora, por texto ou áudio, com recibo e Desfazer por 24h."],
-                ["Altair", "O negócio esfria e ninguém vê até o fim do trimestre.", "Altair aponta o que está parado, sem próximo passo ou com a data vencida, do mais valioso ao menos."],
-                ["Vega", "O forecast é discutido com números que ninguém consegue defender.", "Vega só usa número calculado em SQL. Nada de conta feita pelo modelo."],
-                ["Argus", "A amostra é pequena e todo mundo compara vendedores mesmo assim.", "Argus avisa quando não dá para confiar, e o OmniData suprime o ranking abaixo de 20 fechados."],
-              ].map(([who, before, after]) => (
-                <div key={who} className="symptom">
-                  <p className="before">{before}</p>
-                  <span className="arrow" aria-hidden="true">→</span>
-                  <p className="after"><b>{who}:</b> {after}</p>
-                </div>
-              ))}
-            </div>
+            <Symptoms />
 
             <Flag k="Perdas sem motivo estruturado">
               {m.lostNoReason.map((d) => d.id).join(", ")} foram perdidos sem motivo registrado. Análises de win/loss por motivo excluem esses negócios até o vendedor responder. Este é o buraco que o Observatório existe para fechar.
@@ -112,12 +102,8 @@ export default function Home() {
                 <Eyebrow>Um dia com o Observatório</Eyebrow>
                 <h2 className="h2">Da primeira mensagem da manhã ao último aviso da tarde.</h2>
               </div>
-              <ol className="day">
-                <li><time>07:30</time><div><b>Aurora</b><p>Abre o dia: os {Math.min(5, m.healthRows.length)} negócios que mais pedem a Ana, começando por <em>{top.name}</em>, parado há {top.daysInStage} dias.</p></div></li>
-                <li><time>10:12</time><div><b>Orion → Vega e Lyra</b><p>Ana pede duas coisas numa frase. Orion divide: Vega responde a meta, Lyra registra a nota. Uma resposta só.</p></div></li>
-                <li><time>14:05</time><div><b>Altair</b><p><em>{quiet.name}</em> está há {quiet.quietDays} dias sem atividade e com a data de fechamento vencida. Um toque para ver, outro para adiar.</p></div></li>
-                <li><time>17:40</time><div><b>Argus</b><p>Só {m.closed} negócios fechados no período. Ele avisa para não comparar vendedores ainda.</p></div></li>
-              </ol>
+              <DayTimeline healthCount={Math.min(5, m.healthRows.length)} topName={top.name} topDays={top.daysInStage}
+                quietName={quiet.name} quietDays={quiet.quietDays} closed={m.closed} />
             </div>
             <Chat title="Ana Souza" msgs={[
               { me: true, text: "como estou na meta e anota na Acme que o CFO aprovou" },
