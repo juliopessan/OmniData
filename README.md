@@ -113,7 +113,11 @@ Depois, `EVOLUTION_INSTANCE=omnidata` no `.env`. Sem assinatura nativa de webhoo
 
 **Memória de reuniões (Atlas, ADR 0009):** transcrições de reunião viram embeddings num Chroma auto-hospedado, só como índice semântico — quem decide o que o vendedor pode ver continua sendo o Postgres (`Principal.owner_clause()`), checado de novo em cada trecho antes de virar resposta, nunca o Chroma sozinho.
 
-**Propostas (Vela):** "manda uma proposta pra Acme: licença anual, 10 usuários, pro email joao@acme.com" monta um PDF no visual do Ledger — nome e valor vêm do negócio no CRM, o escopo é o que você descrever, não existe cadastro de produtos/preços — e pede confirmação antes de mandar por e-mail (uma conta Gmail única da empresa, `mailer/gmail.py`) e/ou como documento aqui mesmo no WhatsApp. Nunca escreve no HubSpot, então funciona mesmo sem `HUBSPOT_ACCESS_TOKEN`; sem e-mail configurado, degrada pra WhatsApp-only. Depois de enviado não tem Desfazer — não dá pra tirar um e-mail da caixa de entrada de alguém.
+**Propostas (Vela):** "manda uma proposta pra Acme: licença anual, 10 usuários, pro email joao@acme.com" monta um PDF no visual do Ledger — nome e valor vêm do negócio no CRM, o escopo é o que você descrever, não existe cadastro de produtos/preços — e pede confirmação antes de mandar por e-mail (uma conta Gmail única da empresa, `mailer/gmail.py`) e/ou como documento aqui mesmo no WhatsApp. Nunca escreve no HubSpot, então funciona mesmo sem `HUBSPOT_ACCESS_TOKEN`; sem e-mail configurado, degrada pra WhatsApp-only. Depois de enviado não tem Desfazer — não dá pra tirar um e-mail da caixa de entrada de alguém. `PROPOSAL_COMPANY_NAME` no `.env` define quem assina o PDF (a sua empresa, não "OmniData").
+
+O envio por e-mail aceita duas formas de autenticação, a primeira com preferência sobre a segunda:
+- **Gmail API + OAuth2** (`GMAIL_CLIENT_ID`, `GMAIL_CLIENT_SECRET`, `GMAIL_REFRESH_TOKEN`): funciona mesmo quando a política do Workspace bloqueia senha de app. O client OAuth precisa ser do tipo **"Desktop app"** no Google Cloud Console (aceita o redirecionamento local de qualquer porta sem cadastro prévio); se for **"Web application"**, cadastre `http://127.0.0.1:8765` em "URIs de redirecionamento autorizados". Depois, rode uma vez: `GMAIL_CLIENT_ID=... GMAIL_CLIENT_SECRET=... uv run python scripts/gmail_oauth_setup.py` — abre uma URL de consentimento (você faz login, o script nunca vê sua senha) e imprime o `GMAIL_REFRESH_TOKEN` pra colar no `.env`.
+- **SMTP + senha de app** (`GMAIL_APP_PASSWORD`, fallback se as variáveis OAuth acima estiverem vazias): Conta do Google → Segurança → Senhas de app (exige verificação em duas etapas ativada).
 
 ## Avaliação do planejador (Orion)
 
@@ -238,7 +242,9 @@ uv run omnidata insights analyze negocios.csv                             # insi
 | `LLM_PROVIDER`, `ANTHROPIC_API_KEY` / `OPENAI_API_KEY` / `DEEPSEEK_API_KEY` | planejamento e narração; `OPENAI_API_KEY` também transcreve áudios | opcional (sem elas: modo degradado) |
 | `OPENROUTER_API_KEY`, `OPENROUTER_MODEL_ROUTER`, `OPENROUTER_MODEL_NARRATOR` | fallback: usado se o `LLM_PROVIDER` falhar (ou sozinho, sem um principal) | opcional |
 | `LANGFUSE_PUBLIC_KEY`, `LANGFUSE_SECRET_KEY`, `LANGFUSE_BASE_URL` | observabilidade (traces por mensagem) | opcional |
-| `GMAIL_USER`, `GMAIL_APP_PASSWORD`, `GMAIL_FROM_NAME` | propostas por e-mail (Vela) | opcional (sem elas: só WhatsApp) |
+| `GMAIL_USER`, `GMAIL_FROM_NAME`, `PROPOSAL_COMPANY_NAME` | propostas por e-mail (Vela) | opcional (sem elas: só WhatsApp) |
+| `GMAIL_CLIENT_ID`, `GMAIL_CLIENT_SECRET`, `GMAIL_REFRESH_TOKEN` | autenticação via Gmail API + OAuth2 (preferida) | opcional, ver `scripts/gmail_oauth_setup.py` |
+| `GMAIL_APP_PASSWORD` | autenticação via SMTP (fallback, se as três acima faltarem) | opcional |
 | `CHROMA_URL`, `CHROMA_COLLECTION`, `EMBEDDINGS_MODEL` | memória de reuniões (Atlas, ADR 0009) | só se usar Atlas |
 | `ADMIN_API_TOKEN`, `CORS_ORIGINS` | upload de datasets pela API | só para usar a página Datasets contra a API |
 | `INGEST_MODE` | `direct` (padrão) ou `airbyte` | não |

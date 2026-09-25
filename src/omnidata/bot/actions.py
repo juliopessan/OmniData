@@ -14,7 +14,7 @@ from psycopg.types.json import Jsonb
 from ..crm.hubspot.client import HubSpotError
 from ..crm.hubspot.writeback import HubSpotWriter
 from ..db import upsert
-from ..mailer.gmail import EmailError, GmailSender
+from ..mailer.gmail import EmailError, EmailSender
 from ..proposals.pdf import render_pdf
 from ..proposals.template import render_html
 from ..security.principal import Principal
@@ -192,7 +192,8 @@ def propose_send_proposal(conn: Conn, p: Principal, deal_query: str, summary: st
                  buttons=[(f"act:confirm:{aid}", S.BTN_CONFIRM), (f"act:cancel:{aid}", S.BTN_CANCEL)])
 
 
-async def confirm_send_proposal(conn: Conn, p: Principal, aid: str, *, emailer: GmailSender | None, gateway: MessagingGateway) -> Reply:
+async def confirm_send_proposal(conn: Conn, p: Principal, aid: str, *, emailer: EmailSender | None, gateway: MessagingGateway,
+                                company_name: str = "OmniData") -> Reply:
     """Own confirm path — `confirm()` above is hard-coded to the HubSpot deal-update write, and this write never
     touches HubSpot at all (nothing to undo, so no undo_deadline/Undo button on the receipt either)."""
     with conn.cursor() as cur:
@@ -207,7 +208,7 @@ async def confirm_send_proposal(conn: Conn, p: Principal, aid: str, *, emailer: 
             return Reply(S.ALREADY_DONE)
         return Reply(S.EXPIRED)
     prm = a["params"]
-    html = render_html(prm["deal_name"], S.brl(float(prm["amount"])), prm["summary"], p.display_name or "Vendedor")
+    html = render_html(prm["deal_name"], S.brl(float(prm["amount"])), prm["summary"], p.display_name or "Vendedor", company_name)
     pdf = render_pdf(html)
     filename = f"proposta-{prm['deal_id']}.pdf"
     sent: list[str] = []

@@ -70,9 +70,13 @@ class Settings(BaseSettings):
     langfuse_public_key: str = ""      # observability (telemetry.py): all three empty = tracing off, same degrade-to-none pattern as every other optional integration
     langfuse_secret_key: str = ""
     langfuse_base_url: str = ""        # self-hosted or regional Langfuse Cloud URL, e.g. https://cloud.langfuse.com
-    gmail_user: str = ""                # single company Gmail account (mailer/gmail.py); empty = "vela" degrades to whatsapp-only
-    gmail_app_password: str = ""        # Google Account -> Security -> App passwords (needs 2-Step Verification on)
+    gmail_user: str = ""                 # single company Gmail account (mailer/gmail.py); empty = "vela" degrades to whatsapp-only
     gmail_from_name: str = "OmniData"
+    gmail_client_id: str = ""            # Gmail API + OAuth2 (preferred if set): Google Cloud Console -> OAuth client
+    gmail_client_secret: str = ""
+    gmail_refresh_token: str = ""        # obtained once via scripts/gmail_oauth_setup.py
+    gmail_app_password: str = ""         # SMTP fallback (used only if the OAuth vars above are empty): Google Account -> Security -> App passwords
+    proposal_company_name: str = "OmniData"  # nome que assina o PDF da proposta (Vela) — a empresa do vendedor, não o produto
 
     @property
     def direct_url(self) -> str:

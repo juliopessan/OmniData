@@ -25,7 +25,7 @@ from ..llm.base import LlmClient
 from ..llm.fallback import FallbackLlmClient
 from ..llm.openai_chat import OpenAIChatClient
 from ..llm.transcribe import OpenAITranscriber, Transcriber
-from ..mailer.gmail import GmailSender
+from ..mailer.gmail import EmailSender, GmailApiSender, GmailSmtpSender
 from ..rag.chroma import ChromaStore, VectorStore
 from ..rag.embeddings import Embeddings, OpenAIEmbeddings
 
@@ -79,10 +79,12 @@ def build_vector_store(s: Settings) -> VectorStore | None:
     return ChromaStore(s.chroma_url, s.chroma_collection)
 
 
-def build_emailer(s: Settings) -> GmailSender | None:
-    if not (s.gmail_user and s.gmail_app_password):
-        return None  # Vela then reports "e-mail indisponível" and (if asked) sends only via WhatsApp
-    return GmailSender(s.gmail_user, s.gmail_app_password, s.gmail_from_name)
+def build_emailer(s: Settings) -> EmailSender | None:
+    if s.gmail_client_id and s.gmail_client_secret and s.gmail_refresh_token:  # Gmail API + OAuth2, preferred
+        return GmailApiSender(s.gmail_client_id, s.gmail_client_secret, s.gmail_refresh_token, s.gmail_user, s.gmail_from_name)
+    if s.gmail_user and s.gmail_app_password:  # SMTP fallback
+        return GmailSmtpSender(s.gmail_user, s.gmail_app_password, s.gmail_from_name)
+    return None  # Vela then reports "e-mail indisponível" and (if asked) sends only via WhatsApp
 
 
 async def _locked(key: int, fn):  # type: ignore[no-untyped-def]
