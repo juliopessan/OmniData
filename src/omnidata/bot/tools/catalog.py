@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 class Period(BaseModel):
@@ -77,8 +77,15 @@ class UndoLast(BaseModel):
 class SendProposal(BaseModel):
     deal: str = Field(min_length=2, max_length=120)
     summary: str = Field(min_length=5, max_length=1500)  # escopo/itens em texto livre — não há cadastro de produtos/preços
-    recipient_email: str = Field(min_length=5, max_length=254, pattern=r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
     channel: Literal["email", "whatsapp", "both"] = "both"
+    # só exigido quando channel inclui email (validator abaixo) — "só manda pelo WhatsApp" nunca deveria pedir e-mail
+    recipient_email: str = Field(default="", max_length=254, pattern=r"^$|^[^@\s]+@[^@\s]+\.[^@\s]+$")
+
+    @model_validator(mode="after")
+    def _email_required_unless_whatsapp_only(self) -> SendProposal:
+        if self.channel != "whatsapp" and not self.recipient_email:
+            raise ValueError("recipient_email é obrigatório quando o canal inclui e-mail")
+        return self
 
 
 TOOLS: dict[str, tuple[type[BaseModel], str]] = {
@@ -111,7 +118,8 @@ TOOLS: dict[str, tuple[type[BaseModel], str]] = {
     "undo_last": (UndoLast, "Desfazer a última ação registrada (até 24h)."),
     "send_proposal": (SendProposal, "Monta uma proposta comercial em PDF pro negócio (valor vem do CRM, escopo é o que "
                       "o vendedor descrever) e manda pro cliente por e-mail e/ou como documento no WhatsApp. Exige "
-                      "confirmação antes de sair; o e-mail do destinatário é sempre informado no pedido, nunca inventado."),
+                      "confirmação antes de sair. channel=\"whatsapp\": não peça e-mail, deixe recipient_email vazio. "
+                      "channel=\"email\" ou \"both\": recipient_email é obrigatório e vem sempre do pedido, nunca inventado."),
 }
 READ_TOOLS = {"get_forecast", "get_kpis", "get_quota_status", "get_team_status", "get_pipeline_summary", "get_deal", "list_deals_needing_action", "get_morning_brief", "get_data_quality", "get_pains", "get_recurring_terms", "get_demand_types", "get_systems_landscape", "get_segment_insights", "get_insight_coverage", "get_insight_digest", "get_fix_queue", "get_playbook", "search_meeting_notes", "get_goal_status"}
 
