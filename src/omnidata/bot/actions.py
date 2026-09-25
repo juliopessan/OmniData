@@ -62,7 +62,10 @@ def _resolve_deal(conn: Conn, p: Principal, query: str) -> tuple[dict[str, Any] 
     found = repo.find_deals(conn, p, query)
     if not found:
         return None, Reply(S.NO_MATCH_DEAL.format(q=query))
-    if len(found) > 1 and found[0]["name"].lower() != query.lower():
+    exact = [d for d in found if repo.normalize_deal_name(d["name"]) == repo.normalize_deal_name(query)]
+    if len(exact) == 1:
+        return exact[0], None
+    if len(found) > 1:
         rows = [(f"pick:{d['hs_deal_id']}", d["name"], f"{d['stage_label']} · {S.brl(d['amount'])}") for d in found[:10]]
         return None, Reply(S.PICK_DEAL, list_rows=rows, list_button="Escolher")
     return found[0], None
@@ -188,7 +191,8 @@ def propose_send_proposal(conn: Conn, p: Principal, deal_query: str, summary: st
     aid = _new_pending(conn, p, "send_proposal", params, "high", None, "proposed", PENDING_TTL)
     conn.commit()
     where = {"email": f"por e-mail ({recipient_email})", "whatsapp": "aqui no WhatsApp", "both": f"por e-mail ({recipient_email}) e aqui no WhatsApp"}[channel]
-    return Reply(f"Confirma o envio da proposta de *{deal['name']}* ({S.brl(deal['amount'])}) {where}?",
+    return Reply(f"Confirma o envio da proposta de *{deal['name']}* ({S.brl(deal['amount'])}) {where}?"
+                 + ("" if summary.strip() else S.PROPOSAL_NO_SCOPE),
                  buttons=[(f"act:confirm:{aid}", S.BTN_CONFIRM), (f"act:cancel:{aid}", S.BTN_CANCEL)])
 
 

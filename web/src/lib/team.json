@@ -156,8 +156,8 @@
         "send_proposal"
       ],
       "examples": [
-        "manda uma proposta pra Acme: licença anual pra 10 usuários, pro email joao@acme.com",
-        "envia o orçamento da Acme por e-mail e WhatsApp"
+        "manda a proposta da Acme aqui no WhatsApp",
+        "manda uma proposta pra Acme: licença anual pra 10 usuários, pro email joao@acme.com"
       ]
     }
   ]

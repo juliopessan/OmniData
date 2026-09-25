@@ -95,7 +95,7 @@ VELA = Agent(
     "manda pro cliente por e-mail e/ou como documento aqui no WhatsApp — sempre com sua confirmação antes de sair.",
     "Formal e objetiva. Confere cada detalhe em voz alta antes de mandar.",
     ("send_proposal",),
-    ("manda uma proposta pra Acme: licença anual pra 10 usuários, pro email joao@acme.com", "envia o orçamento da Acme por e-mail e WhatsApp"),
+    ("manda a proposta da Acme aqui no WhatsApp", "manda uma proposta pra Acme: licença anual pra 10 usuários, pro email joao@acme.com"),
 )
 
 TEAM: dict[str, Agent] = {a.key: a for a in (ORION, VEGA, ALTAIR, LYRA, AURORA, ARGUS, POLARIS, NOVA, ATLAS, VELA)}

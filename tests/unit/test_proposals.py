@@ -67,3 +67,9 @@ def test_render_pdf_produces_a_real_pdf():
     pdf = render_pdf(html)
     assert pdf.startswith(b"%PDF-")
     assert len(pdf) > 1000
+
+
+def test_render_html_without_scope_states_crm_only_and_invents_no_items():
+    html = render_html("Empresa 890 – Novo", 120000, "", "Julio Pessan", company_name="Find", today=date(2026, 9, 25), ref="AB12CD34")
+    assert "Proposta comercial para Empresa 890" in html and "R$ 120.000,00" in html
+    assert '<ul class="items">' not in html and "itens de escopo" not in html

@@ -406,7 +406,8 @@ async def _orion(conn: Conn, deps: Deps, p: Principal, text: str) -> Reply:
                 llm_said_oos = True  # not final yet: the keyword net below gets a say too, same as "rejected"
             elif status.startswith("needs_info:"):
                 agent = T.TEAM[status.split(":", 1)[1]]
-                return _sign(agent, Reply(S.NEEDS_INFO.format(hint=agent.examples[0])))
+                what, hint = S.NEEDS_INFO_DETAIL.get(agent.key, (S.NEEDS_INFO_DEFAULT_WHAT, agent.examples[0]))
+                return _sign(agent, Reply(S.NEEDS_INFO.format(what=what, hint=hint)))
         except LlmError:
             audit(conn, p.user_id, "llm_down", {})
             conn.commit()

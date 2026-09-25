@@ -5,7 +5,14 @@ from typing import Any
 
 REFUSAL_UNKNOWN = "Não consegui identificar este número. Fale com o administrador da sua conta para receber o convite."
 OUT_OF_SCOPE = "Eu cuido só do seu trabalho de vendas: meta, negócios, notas e tarefas. Posso ajudar com algum deles?"
-NEEDS_INFO = "Claro! Só me falta o negócio e o que registrar. Manda assim: “{hint}”."
+NEEDS_INFO = "Claro! Só me falta {what}. Manda assim: “{hint}”."
+# (o que falta, exemplo) por especialista de escrita; os demais usam NEEDS_INFO_DEFAULT_WHAT + o 1º exemplo do agente
+NEEDS_INFO_DETAIL = {
+    "lyra": ("o negócio e o que registrar", "nota na Acme: CFO aprovou o escopo"),
+    "vela": ("saber qual é o negócio", "manda a proposta da Acme aqui no WhatsApp"),
+    "aurora": ("a meta e o prazo", "quero fechar 3 negócios até sexta"),
+}
+NEEDS_INFO_DEFAULT_WHAT = "um detalhe"
 NOT_CONFIRMED = "Não consegui confirmar esse número agora. Tento de novo em alguns minutos?"
 RATE_LIMITED = "Muitas mensagens em pouco tempo. Tente de novo daqui a pouco."
 MENU_TITLE = "O que você quer ver?"
@@ -28,6 +35,7 @@ PROPOSAL_FAILED = "Não consegui mandar a proposta agora. Tente de novo em algun
 PROPOSAL_EMAIL_SUBJECT = "Proposta comercial — {client}"
 PROPOSAL_EMAIL_BODY = ("Olá,\n\nSegue em anexo a proposta comercial para {client}, válida até {valid_until}.\n\n"
                        "Qualquer dúvida ou ajuste, é só responder este e-mail.\n\n{seller}\n{company}")
+PROPOSAL_NO_SCOPE = "\n\nSem escopo descrito: o PDF sai só com os dados do CRM. Pra detalhar, cancele e peça de novo descrevendo o escopo."
 PROPOSAL_WA_CAPTION = "Proposta para {client} (nº {ref})"
 EXPIRED = "Essa confirmação expirou. Peça de novo se ainda quiser."
 ALREADY_DONE = "Isso já foi feito."

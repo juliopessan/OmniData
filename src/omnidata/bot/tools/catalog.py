@@ -76,7 +76,7 @@ class UndoLast(BaseModel):
 
 class SendProposal(BaseModel):
     deal: str = Field(min_length=2, max_length=120)
-    summary: str = Field(min_length=5, max_length=1500)  # escopo/itens em texto livre — não há cadastro de produtos/preços
+    summary: str = Field(default="", max_length=1500)  # escopo em texto livre, opcional: vazio = PDF só com os dados do CRM
     channel: Literal["email", "whatsapp", "both"] = "both"
     # só exigido quando channel inclui email (validator abaixo) — "só manda pelo WhatsApp" nunca deveria pedir e-mail
     recipient_email: str = Field(default="", max_length=254, pattern=r"^$|^[^@\s]+@[^@\s]+\.[^@\s]+$")
@@ -118,7 +118,8 @@ TOOLS: dict[str, tuple[type[BaseModel], str]] = {
     "undo_last": (UndoLast, "Desfazer a última ação registrada (até 24h)."),
     "send_proposal": (SendProposal, "Monta uma proposta comercial em PDF pro negócio (valor vem do CRM, escopo é o que "
                       "o vendedor descrever) e manda pro cliente por e-mail e/ou como documento no WhatsApp. Exige "
-                      "confirmação antes de sair. channel=\"whatsapp\": não peça e-mail, deixe recipient_email vazio. "
+                      "confirmação antes de sair. summary é opcional: sem escopo descrito, deixe vazio (o PDF usa só os dados do CRM), "
+                      "nunca invente escopo. channel=\"whatsapp\": não peça e-mail, deixe recipient_email vazio. "
                       "channel=\"email\" ou \"both\": recipient_email é obrigatório e vem sempre do pedido, nunca inventado."),
 }
 READ_TOOLS = {"get_forecast", "get_kpis", "get_quota_status", "get_team_status", "get_pipeline_summary", "get_deal", "list_deals_needing_action", "get_morning_brief", "get_data_quality", "get_pains", "get_recurring_terms", "get_demand_types", "get_systems_landscape", "get_segment_insights", "get_insight_coverage", "get_insight_digest", "get_fix_queue", "get_playbook", "search_meeting_notes", "get_goal_status"}

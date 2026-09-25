@@ -1,6 +1,7 @@
 """Read repositories: serving.* only, ALWAYS scoped by Principal (FR-BOT-2). No function takes an owner id from callers."""
 from __future__ import annotations
 
+import re
 from datetime import date, datetime, timedelta
 from typing import Any
 from zoneinfo import ZoneInfo
@@ -123,16 +124,37 @@ def deals_needing_action(conn: Conn, p: Principal, limit: int = 5) -> dict[str, 
                        "flags": list(r["health_flags"])} for r in rows]}  # attention_score decides the order only, never shown or narrated
 
 
+_AMOUNT = re.compile(r"\([^)]*\)|R\$\s*[\d.,]+", re.IGNORECASE)
+
+
+def deal_query_tokens(query: str) -> list[str]:
+    """What a seller pastes back is often the bot's own list line: "Empresa 890 – Novo (R$ 120.000)". The amount and any
+    parenthetical are not part of the name, and a token that fails to match drops every result (all tokens must match)."""
+    words = (w.strip("()[]{}.,;:!?\"'“”") for w in _AMOUNT.sub(" ", query).replace("–", " ").replace("—", " ").replace("-", " ").split())
+    return [w for w in words if len(w) > 1][:5]
+
+
+def normalize_deal_name(name: str) -> str:
+    return " ".join(deal_query_tokens(name)).lower()
+
+
 def find_deals(conn: Conn, p: Principal, query: str, limit: int = 5) -> list[dict[str, Any]]:
-    """Fuzzy by name (all tokens must match) among deals THIS principal can see — by name or by id."""
+    """Fuzzy by name (all tokens must match) among deals THIS principal can see — by name or by id. A number matches as a
+    whole word, so "Empresa 890" never also returns "Empresa 1890"."""
     clause, params = p.owner_clause()
-    tokens = [t for t in query.replace("–", " ").replace("-", " ").split() if len(t) > 1][:5]
+    tokens = deal_query_tokens(query)
     if not tokens:
         return []
-    like = " and ".join("(name ilike %s or hs_deal_id = %s)" for _ in tokens)
+    conds: list[str] = []
     args: list[Any] = []
     for t in tokens:
-        args += [f"%{t}%", t]
+        if t.isdigit():
+            conds.append("(name ~* %s or hs_deal_id = %s)")
+            args += [rf"\m{t}\M", t]
+        else:
+            conds.append("(name ilike %s or hs_deal_id = %s)")
+            args += [f"%{t}%", t]
+    like = " and ".join(conds)
     with conn.cursor() as cur:
         cur.execute(f"select hs_deal_id, name, amount, stage_label, days_in_stage, health_flags, hs_pipeline_id, hs_stage_id, hs_owner_id "
                     f"from serving.v_deal_health where {clause} and {like} order by attention_score desc limit %s",

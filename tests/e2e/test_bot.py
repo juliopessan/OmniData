@@ -352,6 +352,42 @@ async def test_send_proposal_without_emailer_reports_email_down_and_marks_failed
         assert cur.fetchone()["status"] == "failed"
 
 
+async def test_send_proposal_whatsapp_only_from_a_pasted_list_line_without_scope(world):  # Vela, real case 25/09/2026
+    """Reproduces the WhatsApp exchange that looped on "falta info": the seller pastes the bot's own list line (with the
+    amount in parentheses), gives no scope and no e-mail. "890" must not also match "1890"."""
+    conn, gw, w, s, _ = world
+    with conn.cursor() as cur:
+        cur.execute("select hs_deal_id from serving.v_deal_health where hs_owner_id='9000' order by hs_deal_id limit 2")
+        a, b = (r["hs_deal_id"] for r in cur.fetchall())
+        cur.execute("update silver.deal set name='Empresa 890 – Novo' where hs_deal_id=%s", (a,))
+        cur.execute("update silver.deal set name='Empresa 1890 – Novo' where hs_deal_id=%s", (b,))
+    conn.commit()
+    emailer = FakeEmailer()
+    d = deps(gw, w, s, FakeLlm(tool=ToolCall("send_proposal", {"deal": "Empresa 890 – Novo (R$ 120.000)", "channel": "whatsapp"})),
+             emailer=emailer)
+    out = await say(conn, d, REP_A, "Vela, busque na database a empresa 890 e manda o pdf aqui no whats")
+    assert "Empresa 890 – Novo" in out["body"] and "1890" not in out["body"]
+    assert "Sem escopo descrito" in out["body"] and "e-mail" not in out["body"].split("?")[0]
+    done = await say(conn, d, REP_A, reply=out["buttons"][0][0])
+    assert "Enviado" in done["body"] and emailer.sent == []
+    docs = [m for m in gw.sent if m["type"] == "document"]
+    assert len(docs) == 1 and docs[0]["data"].startswith(b"%PDF-")
+
+
+async def test_needs_info_for_vela_never_asks_for_an_email(world):  # the hint used to be Lyra's, with an e-mail in it
+    conn, gw, w, s, _ = world
+    d = deps(gw, w, s, FakeLlm(router_text="PRECISA_MAIS:vela"))
+    out = await say(conn, d, REP_A, "manda uma proposta")
+    assert "Vela" in out["body"] and "@" not in out["body"] and "registrar" not in out["body"]
+
+
+async def test_list_the_specialists_is_the_team_answer_not_out_of_scope(world):
+    conn, gw, w, s, _ = world
+    d = deps(gw, w, s, FakeLlm(router_text="FORA_DO_ESCOPO"))
+    out = await say(conn, d, REP_A, "lista os especialistas")
+    assert "Vela" in out["body"] and S.OUT_OF_SCOPE not in out["body"]
+
+
 async def test_stale_undo_refuses_when_colleague_changed_value(world):  # FR-WRT-3 / D10
     conn, gw, w, s, _ = world
     deal = await _own_deal(conn)

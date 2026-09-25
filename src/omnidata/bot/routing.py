@@ -12,7 +12,7 @@ from ..llm.base import RouterResult
 from .router import has_write_cue, keyword_route
 
 NICK = re.compile(r"^\s*me chama de\s+(.{1,30}?)\s*[.!]?\s*$", re.IGNORECASE)
-TEAM_Q = re.compile(r"\b(equipe|quem (sao|são) (voces|vocês)|quem trabalha|observatorio|observatório)\b", re.IGNORECASE)
+TEAM_Q = re.compile(r"\b(equipe|especialistas|quem (sao|são) (voces|vocês)|quem trabalha|observatorio|observatório)\b", re.IGNORECASE)
 INSIGHTS_Q = re.compile(r"\b(insights?|panorama das empresas|radar das empresas)\b", re.IGNORECASE)
 # "me dá os insights": Orion splits it (Lyra: dores, Altair: demanda, Argus: cobertura)
 OVERVIEW_PLAN: list[dict[str, Any]] = [{"agent": "lyra", "tool": "get_pains", "args": {}}, {"agent": "altair", "tool": "get_demand_types", "args": {}},

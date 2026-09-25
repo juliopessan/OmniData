@@ -133,7 +133,7 @@
 
   <div class="sec">
     <p class="eyebrow">01 · Escopo</p>
-    <div class="prose">{% for p in paras %}<p>{{ p }}</p>{% endfor %}</div>
+    <div class="prose">{% for p in paras %}<p>{{ p }}</p>{% else %}{% if not items %}<p>Proposta comercial para {{ client }}{% if front %}, referente a {{ front }}{% endif %}. O escopo detalhado e as condições finais são alinhados entre as partes antes do aceite.</p>{% endif %}{% endfor %}</div>
     {% if items %}<ul class="items">{% for it in items %}<li>{{ it }}</li>{% endfor %}</ul>{% endif %}
   </div>
 
