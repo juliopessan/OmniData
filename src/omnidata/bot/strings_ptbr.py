@@ -24,6 +24,11 @@ PICK_DEAL = "Achei mais de um negócio. Qual deles?"
 HUBSPOT_DOWN = "O HubSpot não respondeu agora, então não registrei nada. Tente de novo em alguns minutos."
 EMAIL_DOWN = "O e-mail não está configurado agora, então não consegui mandar por aí. Tente pedir só pelo WhatsApp."
 PROPOSAL_FAILED = "Não consegui mandar a proposta agora. Tente de novo em alguns minutos."
+# E-mail que chega ao CLIENTE (Vela): nome limpo, nunca o rótulo interno do CRM
+PROPOSAL_EMAIL_SUBJECT = "Proposta comercial — {client}"
+PROPOSAL_EMAIL_BODY = ("Olá,\n\nSegue em anexo a proposta comercial para {client}, válida até {valid_until}.\n\n"
+                       "Qualquer dúvida ou ajuste, é só responder este e-mail.\n\n{seller}\n{company}")
+PROPOSAL_WA_CAPTION = "Proposta para {client} (nº {ref})"
 EXPIRED = "Essa confirmação expirou. Peça de novo se ainda quiser."
 ALREADY_DONE = "Isso já foi feito."
 CANCELLED = "Cancelado. Nada foi alterado."

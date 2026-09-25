@@ -284,7 +284,7 @@ async def _handle_reply_id(conn: Conn, deps: Deps, p: Principal, rid: str) -> Re
             pending = actions._own_action(conn, p, ident)
             conn.commit()
             if pending and pending["kind"] == "send_proposal":
-                return await actions.confirm_send_proposal(conn, p, ident, emailer=deps.emailer, gateway=deps.gateway, company_name=deps.settings.proposal_company_name)
+                return await actions.confirm_send_proposal(conn, p, ident, emailer=deps.emailer, gateway=deps.gateway, company_name=deps.settings.proposal_company_name, logo_path=deps.settings.proposal_logo)
             if deps.writer:
                 return await actions.confirm(conn, deps.writer, p, ident)
         if verb == "cancel":
@@ -476,7 +476,7 @@ async def _free_text_confirmation(conn: Conn, deps: Deps, p: Principal, confirm:
     if not r:
         return Reply(S.MENU_BODY, list_rows=[(f"menu:{k}", t, d) for k, t, d in S.MENU_ROWS], list_button=S.MENU_TITLE[:20])
     if confirm and r["kind"] == "send_proposal":
-        return await actions.confirm_send_proposal(conn, p, str(r["id"]), emailer=deps.emailer, gateway=deps.gateway, company_name=deps.settings.proposal_company_name)
+        return await actions.confirm_send_proposal(conn, p, str(r["id"]), emailer=deps.emailer, gateway=deps.gateway, company_name=deps.settings.proposal_company_name, logo_path=deps.settings.proposal_logo)
     if confirm and deps.writer:
         return await actions.confirm(conn, deps.writer, p, str(r["id"]))
     return actions.cancel(conn, p, str(r["id"]))

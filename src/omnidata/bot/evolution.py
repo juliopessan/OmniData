@@ -163,10 +163,8 @@ class EvolutionGateway:
         return base64.b64decode(b64), str(mime)
 
     async def send_document(self, to: str, filename: str, data: bytes, mime: str, caption: str = "") -> str:
-        """OPEN (Vela): unverified against a real instance, same status download_media had before its own smoke
-        test — the body shape (`mediatype`/`fileName`/`media` base64) follows Evolution's documented convention for
-        /message/sendMedia, but no example payload is published. Fails as a clean GatewayError if the shape is wrong;
-        confirm against a real instance before relying on this, and fix the field names the same way set_webhook was."""
+        """Confirmed 2026-09-25 against the real instance: the body shape below (`mediatype`/`fileName`/`media`
+        base64) works as documented — a real PDF sent this way arrived intact on WhatsApp."""
         import base64
         d = await self._post("/message/sendMedia", {"number": to.lstrip("+"), "mediatype": "document", "mimetype": mime,
                                                      "fileName": filename, "caption": caption, "media": base64.b64encode(data).decode()})

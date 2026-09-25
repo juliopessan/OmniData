@@ -2,113 +2,171 @@
 <html lang="pt-BR">
 <head>
 <meta charset="utf-8">
-<title>Proposta — {{ deal_name }}</title>
+<title>Proposta — {{ client }}</title>
 <style>
-  /* Tokens do Ledger (web/src/app/globals.css), embutidos porque o WeasyPrint não busca CSS externo com
-     facilidade. Sempre modo claro — é um documento impresso. Estrutura seguindo o modelo de referência do
-     usuário: eyebrow → título → meta → ledger escuro com estimativa → seções numeradas → aceite em caixa
-     escura com linhas de assinatura → rodapé — só com os campos que o OmniData realmente tem.
-     Layout em <table>/blocos, não flexbox: o WeasyPrint (62.x) tem suporte parcial a flex/gap e a
-     <section>/<div> sem display declarado — melhor não depender disso num motor de PDF.
-     Fontes: as mesmas da marca no web (Inter Tight + IBM Plex Mono, web/src/app/layout.tsx), embutidas em
-     fonts/ — sem isso, o host (o container Debian de produção não tem "Helvetica Neue") cai num sans genérico. */
+  /* Ledger (web/src/app/globals.css) em versão impressa, seguindo o modelo de referência do usuário: eyebrow com
+     traço → título → linha Cliente/Frente → datas → ledger escuro (números primeiro, rótulo embaixo, nota neutra) →
+     seções numeradas separadas por fio → investimento em tabela → fechamento em itálico serifado → aceite.
+     Regras do Ledger respeitadas: menta só no ponto do cabeçalho do ledger (nada aqui é "medido" — é uma proposta),
+     clay não aparece, serifa uma única vez. Fontes da marca embutidas (fonts/, OFL): Inter Tight, IBM Plex Mono,
+     Instrument Serif. Layout em <table>/blocos — o WeasyPrint 62 tem flexbox parcial. */
   @font-face { font-family: "Inter Tight"; src: url("fonts/InterTight-Variable.ttf"); font-weight: 400 800; }
   @font-face { font-family: "IBM Plex Mono"; src: url("fonts/IBMPlexMono-Regular.ttf"); font-weight: 400; }
   @font-face { font-family: "IBM Plex Mono"; src: url("fonts/IBMPlexMono-Medium.ttf"); font-weight: 500; }
+  @font-face { font-family: "Instrument Serif"; src: url("fonts/InstrumentSerif-Italic.ttf"); font-style: italic; }
 
-  @page { size: A4; margin: 18mm 20mm 14mm; }
+  /* Papel timbrado em todas as páginas: cabeçalho (marca + referência) e rodapé (linha de rastreio + paginação),
+     ambos elementos "running" presos às margens da página, separados do corpo por um fio — nunca uma caixa. */
+  @page {
+    size: A4; margin: 32mm 20mm 26mm; background: #f2efe8;
+    @top-left { content: element(header); width: 170mm; vertical-align: bottom; padding-bottom: 7mm; }
+    @bottom-left { content: element(footer); width: 170mm; vertical-align: top; padding-top: 6mm; }
+  }
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: "Inter Tight", "Helvetica Neue", Helvetica, Arial, sans-serif; font-size: 10.5pt; line-height: 1.5; color: #11110f; background: #f2efe8; }
-  div, p, table { display: block; }
-  .mono { font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace; }
-  .eyebrow { font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 8.5pt; letter-spacing: 0.1em; text-transform: uppercase; color: #9c988e; margin-bottom: 3.5mm; }
-  .eyebrow::before { content: "— "; }
-  h1 { font-size: 21pt; font-weight: 800; letter-spacing: -0.02em; line-height: 1.1; margin-bottom: 3.5mm; }
-  .meta { color: #55524b; margin-bottom: 2.5mm; }
-  .meta-mono { font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 9pt; color: #9c988e; margin-bottom: 6mm; }
+  html, body { background: #f2efe8; }
+  body { font-family: "Inter Tight", "Helvetica Neue", Arial, sans-serif; font-size: 10.5pt; line-height: 1.6; color: #11110f; }
+  div, p, table, ul { display: block; }
+  table { display: table; border-collapse: collapse; width: 100%; }
+  b, strong { font-weight: 700; color: #11110f; }
 
-  .ledger { background: #14140f; color: #efece4; padding: 6mm 7mm; margin-bottom: 7mm; break-inside: avoid; }
-  .ledger-head { font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 8.5pt; letter-spacing: 0.1em; text-transform: uppercase; color: #85817a; margin-bottom: 4mm; }
+  .hdr { position: running(header); }
+  .hdr td { vertical-align: middle; padding-bottom: 4mm; border-bottom: 0.75pt solid #d6d2c8; }
+  .mark { display: inline-block; width: 7.5mm; height: 7.5mm; border-radius: 1.4mm; background: #11110f; color: #f2efe8;
+          text-align: center; line-height: 7.5mm; font-size: 11pt; font-weight: 800; letter-spacing: -0.03em;
+          vertical-align: middle; margin-right: 2.8mm; }
+  .word { font-size: 13pt; font-weight: 800; letter-spacing: -0.03em; vertical-align: middle; color: #11110f; }
+  .logo-img { height: 8mm; vertical-align: middle; }
+  .hmeta { text-align: right; font-family: "IBM Plex Mono", monospace; font-size: 7.5pt; letter-spacing: 0.16em;
+           text-transform: uppercase; color: #9c988e; }
+  .ftr { position: running(footer); }
+  .ftr td { padding-top: 3.5mm; border-top: 0.75pt solid #d6d2c8; font-family: "IBM Plex Mono", monospace;
+            font-size: 7.5pt; color: #9c988e; vertical-align: top; }
+  .ftr .pg { text-align: right; white-space: nowrap; width: 18mm; }
+  .ftr .pg::after { content: counter(page) " / " counter(pages); }
+
+  .eyebrow { font-family: "IBM Plex Mono", monospace; font-size: 8pt; font-weight: 500; letter-spacing: 0.2em;
+             text-transform: uppercase; color: #9c988e; margin-bottom: 6mm; break-after: avoid; }
+  .eyebrow::before { content: ""; display: inline-block; width: 12mm; border-top: 0.75pt solid #9c988e;
+                     vertical-align: middle; margin-right: 4mm; position: relative; top: -0.6mm; }
+
+  h1 { font-size: 26pt; font-weight: 800; letter-spacing: -0.035em; line-height: 1.12; width: 85%; margin-bottom: 5mm; }
+  .meta { font-weight: 500; color: #55524b; line-height: 1.5; margin-bottom: 2mm; }
+  .dates { font-family: "IBM Plex Mono", monospace; font-size: 8.5pt; color: #9c988e; margin-bottom: 11mm; }
+
+  .ledger { background: #14140f; color: #efece4; padding: 8mm 9mm 9mm; margin-bottom: 13mm; break-inside: avoid; }
+  .ledger-head { font-family: "IBM Plex Mono", monospace; font-size: 8pt; font-weight: 500; letter-spacing: 0.18em;
+                 text-transform: uppercase; color: #efece4; padding-bottom: 5mm; margin-bottom: 7mm;
+                 border-bottom: 0.75pt solid #2c2b25; }
   .ledger-head::before { content: "● "; color: #8fcfa6; }
-  .figs { width: 100%; border-collapse: collapse; margin-bottom: 4.5mm; }
-  .figs td { padding: 0 14mm 4.5mm 0; border-bottom: 1px solid #2c2b25; }
-  .figs span { font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 8.5pt; color: #85817a; }
-  .figs b { display: block; font-size: 16pt; font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: -0.02em; padding-top: 1.5mm; }
-  .measured { width: 100%; border-collapse: collapse; border: 1px solid #2c2b25; }
-  .measured td { padding: 3mm 4mm; vertical-align: top; }
-  .measured .tick-cell { width: 9mm; }
-  .measured .tick { display: block; width: 5mm; height: 5mm; text-align: center; line-height: 5mm; background: #8fcfa6; color: #14140f; font-size: 8.5pt; font-weight: 700; }
-  .measured .body { font-size: 9pt; line-height: 1.45; }
-  .measured .k { display: block; font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 8pt; letter-spacing: 0.08em; text-transform: uppercase; color: #85817a; margin-bottom: 1mm; }
+  .figs td { vertical-align: top; padding: 0 6mm 7mm 0; width: 33.33%; }
+  .figs .v { display: block; font-size: 20pt; font-weight: 700; letter-spacing: -0.025em; line-height: 1.1;
+             font-variant-numeric: tabular-nums; color: #efece4; }
+  .figs .l { display: block; margin-top: 2.5mm; font-family: "IBM Plex Mono", monospace; font-size: 8pt; color: #85817a; }
+  .note { border: 0.75pt solid #2c2b25; padding: 5mm 6mm; }
+  .note .k { display: block; font-family: "IBM Plex Mono", monospace; font-size: 7.5pt; letter-spacing: 0.16em;
+             text-transform: uppercase; color: #85817a; margin-bottom: 2mm; }
+  .note p { font-size: 9.5pt; font-weight: 500; line-height: 1.5; color: #efece4; }
 
-  .sec { margin-bottom: 6.5mm; }
-  .sec p { white-space: pre-wrap; color: #11110f; }
-  .sec ul { list-style: none; margin-top: 2mm; }
-  .sec li { display: block; padding: 2mm 0; border-top: 1px solid #d6d2c8; }
-  .sec li::before { content: "— "; color: #9c988e; }
+  .sec { margin-bottom: 14mm; }
+  .prose p { font-weight: 500; color: #55524b; line-height: 1.65; width: 90%; margin-bottom: 3mm; }
+  .items { margin-top: 2mm; border-bottom: 0.75pt solid #d6d2c8; }
+  .items li { display: block; border-top: 0.75pt solid #d6d2c8; padding: 2.6mm 0 2.6mm 5mm; font-weight: 500;
+              color: #55524b; text-indent: -5mm; }
+  .items li::before { content: "·"; display: inline-block; width: 5mm; text-indent: 0; color: #9c988e; }
 
-  .accept { background: #14140f; color: #efece4; padding: 6mm 7mm; break-inside: avoid; }
-  .accept .k { font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 8.5pt; letter-spacing: 0.1em; text-transform: uppercase; color: #85817a; margin-bottom: 2.5mm; }
-  .accept p { color: #efece4; margin-bottom: 6mm; }
-  .sig-row { width: 100%; border-collapse: collapse; }
-  .sig-row td { width: 33%; padding-right: 10mm; vertical-align: bottom; }
-  .sig-row .line { border-top: 1px solid #55524b; margin-bottom: 1.5mm; }
-  .sig-row span { font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 7.5pt; letter-spacing: 0.08em; text-transform: uppercase; color: #85817a; }
+  .inv th { font-family: "IBM Plex Mono", monospace; font-size: 7.5pt; font-weight: 400; letter-spacing: 0.16em;
+            text-transform: uppercase; color: #9c988e; text-align: left; padding: 0 4mm 3mm 0;
+            border-bottom: 0.75pt solid #d6d2c8; }
+  .inv td { padding: 4mm 4mm 4mm 0; border-bottom: 0.75pt solid #d6d2c8; vertical-align: middle; color: #55524b; font-weight: 500; }
+  .inv .name { color: #11110f; font-weight: 600; width: 30%; }
+  .inv .num { text-align: right; padding-right: 0; font-family: "IBM Plex Mono", monospace; font-size: 9.5pt;
+              color: #11110f; white-space: nowrap; width: 22%; }
+  .inv th.num { font-size: 7.5pt; color: #9c988e; }
+  .inv tr.total td { color: #11110f; font-weight: 700; border-bottom: 0.75pt solid #11110f; }
+  .inv tr.total .num { font-weight: 500; }
+  .inv, .steps, .voice { break-inside: avoid; }
 
-  .foot { margin-top: 7mm; padding-top: 4mm; border-top: 1px solid #d6d2c8; color: #9c988e; font-size: 8pt; }
+  .steps p { font-weight: 500; color: #55524b; padding: 1.6mm 0 1.6mm 6mm; }
+  .voice { font-family: "Instrument Serif", Georgia, serif; font-style: italic; font-size: 13pt; line-height: 1.45;
+           color: #55524b; width: 88%; margin-top: 7mm; }
+
+  .accept { background: #14140f; padding: 7mm; break-inside: avoid; }
+  .accept-in { border: 0.75pt solid #2c2b25; padding: 6mm 7mm 7mm; }
+  .accept .k { font-family: "IBM Plex Mono", monospace; font-size: 7.5pt; letter-spacing: 0.18em; text-transform: uppercase;
+               color: #85817a; margin-bottom: 3mm; }
+  .accept p { font-weight: 500; color: #efece4; line-height: 1.5; width: 85%; margin-bottom: 16mm; }
+  .sig td { vertical-align: bottom; padding-right: 8mm; }
+  .sig td:last-child { padding-right: 0; }
+  .sig .line { border-top: 0.75pt solid #85817a; padding-top: 2.5mm; font-family: "IBM Plex Mono", monospace;
+               font-size: 7.5pt; letter-spacing: 0.14em; text-transform: uppercase; color: #85817a; }
 </style>
 </head>
 <body>
-  <p class="eyebrow">{{ company_name }} · Proposta comercial</p>
-  <h1>{{ deal_name }}</h1>
-  <p class="meta">Preparada por {{ seller_name }}.</p>
-  <p class="meta-mono">Emitida em {{ date }} · válida até {{ valid_until }}</p>
+  <div class="hdr"><table><tr>
+    <td>{% if logo %}<img class="logo-img" src="{{ logo }}" alt="{{ company_name }}">{% else %}<span class="mark">{{ initial }}</span><span class="word">{{ company_name }}</span>{% endif %}</td>
+    <td class="hmeta">{% if ref %}Proposta nº {{ ref }} · {{ date }}{% else %}Proposta comercial · {{ date }}{% endif %}</td>
+  </tr></table></div>
+  <div class="ftr"><table><tr>
+    <td>{{ company_name }} · Proposta para {{ client }}{% if ref %} · nº {{ ref }}{% endif %} · válida até {{ valid_until }}</td>
+    <td class="pg"></td>
+  </tr></table></div>
+
+  <p class="eyebrow">Proposta comercial</p>
+  <h1>{{ client }}</h1>
+  <p class="meta"><b>Cliente:</b> {{ client }}{% if front %} · <b>Frente:</b> {{ front }}{% endif %} · <b>Preparada por:</b> {{ seller_name }}</p>
+  <p class="dates">Emitida em {{ date }} · válida até {{ valid_until }}</p>
 
   <div class="ledger">
     <p class="ledger-head">Ledger da proposta</p>
     <table class="figs">
       <tr>
-        <td><span>valor proposto</span><b>{{ amount }}</b></td>
-        <td><span>válida até</span><b>{{ valid_until }}</b></td>
+        <td><span class="v">{{ amount }}</span><span class="l">valor da proposta</span></td>
+        <td><span class="v">{{ validity_days }} dias</span><span class="l">validade</span></td>
+        {% if items|length >= 2 %}<td><span class="v">{{ "%02d"|format(items|length) }}</span><span class="l">itens de escopo</span></td>{% else %}<td></td>{% endif %}
       </tr>
     </table>
-    <table class="measured">
-      <tr>
-        <td class="tick-cell"><span class="tick">✓</span></td>
-        <td class="body"><span class="k">Medido, não estimado</span>Calculado em SQL a partir do HubSpot. O modelo nunca escreve o número — só narra o que a ferramenta devolveu.</td>
-      </tr>
-    </table>
+    <div class="note">
+      <span class="k">Condições</span>
+      <p>Valor e escopo válidos até {{ valid_until }}. Qualquer ajuste é feito em comum acordo, antes do aceite.</p>
+    </div>
   </div>
 
   <div class="sec">
     <p class="eyebrow">01 · Escopo</p>
-    <p>{{ summary }}</p>
+    <div class="prose">{% for p in paras %}<p>{{ p }}</p>{% endfor %}</div>
+    {% if items %}<ul class="items">{% for it in items %}<li>{{ it }}</li>{% endfor %}</ul>{% endif %}
   </div>
 
   <div class="sec">
-    <p class="eyebrow">02 · Próximos passos</p>
-    <ul>
-      <li>Aprovação desta proposta, nas condições e no valor descritos acima.</li>
-      <li>Confirmação por e-mail ou diretamente na conversa do WhatsApp.</li>
-      <li>Alinhamento do início com {{ seller_name }}.</li>
-    </ul>
+    <p class="eyebrow">02 · Investimento</p>
+    <table class="inv">
+      <tr><th>Frente</th><th>Descrição</th><th class="num">Valor</th></tr>
+      <tr><td class="name">{{ front or client }}</td><td>Conforme o escopo descrito na seção 01</td><td class="num">{{ amount }}</td></tr>
+      <tr class="total"><td>Total</td><td></td><td class="num">{{ amount }}</td></tr>
+    </table>
   </div>
 
   <div class="sec">
-    <p class="eyebrow">03 · Aceite</p>
-    <div class="accept">
-      <p class="k">Aceite da proposta</p>
-      <p>Ao confirmar por e-mail ou WhatsApp, o cliente declara aceite desta proposta nas condições e no valor descritos acima.</p>
-      <table class="sig-row">
-        <tr>
-          <td><div class="line"></div><span>Assinatura</span></td>
-          <td><div class="line"></div><span>Nome e cargo</span></td>
-          <td><div class="line"></div><span>Data</span></td>
-        </tr>
-      </table>
+    <p class="eyebrow">03 · Próximos passos</p>
+    <div class="steps">
+      <p>Aprovação desta proposta, nas condições e no valor descritos acima.</p>
+      <p>Confirmação por e-mail ou diretamente na conversa do WhatsApp.</p>
+      <p>Alinhamento do início com {{ seller_name }}.</p>
     </div>
+    <p class="voice">Ficamos à disposição para ajustar qualquer ponto desta proposta antes do aceite.</p>
   </div>
 
-  <p class="foot">{{ company_name }} · Proposta para {{ deal_name }} · emitida em {{ date }} · válida até {{ valid_until }}</p>
+  <div class="sec">
+    <p class="eyebrow">04 · Aceite</p>
+    <div class="accept"><div class="accept-in">
+      <p class="k">Aceite da proposta</p>
+      <p>Ao assinar, o cliente declara aceite desta proposta nas condições, no valor e no prazo descritos acima.</p>
+      <table class="sig"><tr>
+        <td style="width: 40%"><div class="line">Assinatura</div></td>
+        <td style="width: 40%"><div class="line">Nome e cargo</div></td>
+        <td style="width: 20%"><div class="line">Data</div></td>
+      </tr></table>
+    </div></div>
+  </div>
 </body>
 </html>

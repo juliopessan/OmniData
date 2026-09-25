@@ -16,7 +16,7 @@ from ..crm.hubspot.writeback import HubSpotWriter
 from ..db import upsert
 from ..mailer.gmail import EmailError, EmailSender
 from ..proposals.pdf import render_pdf
-from ..proposals.template import render_html
+from ..proposals.template import client_name, file_slug, render_html, valid_until
 from ..security.principal import Principal
 from . import repo
 from . import strings_ptbr as S
@@ -193,7 +193,7 @@ def propose_send_proposal(conn: Conn, p: Principal, deal_query: str, summary: st
 
 
 async def confirm_send_proposal(conn: Conn, p: Principal, aid: str, *, emailer: EmailSender | None, gateway: MessagingGateway,
-                                company_name: str = "OmniData") -> Reply:
+                                company_name: str = "OmniData", logo_path: str = "") -> Reply:
     """Own confirm path — `confirm()` above is hard-coded to the HubSpot deal-update write, and this write never
     touches HubSpot at all (nothing to undo, so no undo_deadline/Undo button on the receipt either)."""
     with conn.cursor() as cur:
@@ -208,28 +208,32 @@ async def confirm_send_proposal(conn: Conn, p: Principal, aid: str, *, emailer: 
             return Reply(S.ALREADY_DONE)
         return Reply(S.EXPIRED)
     prm = a["params"]
-    html = render_html(prm["deal_name"], S.brl(float(prm["amount"])), prm["summary"], p.display_name or "Vendedor", company_name)
+    seller = p.display_name or "Vendedor"
+    ref = aid.replace("-", "")[:8].upper()  # the proposal number the client sees = the audit trail's own id
+    client = client_name(prm["deal_name"])  # never the raw CRM label ("Uniconte [Tax Partner_Licenciamento]")
+    html = render_html(prm["deal_name"], float(prm["amount"]), prm["summary"], seller, company_name, logo_path=logo_path, ref=ref)
     pdf = render_pdf(html)
-    filename = f"proposta-{prm['deal_id']}.pdf"
+    filename = f"proposta-{file_slug(prm['deal_name'])}-{ref.lower()}.pdf"
     sent: list[str] = []
     try:
         if prm["channel"] in ("email", "both"):
             if not emailer:
                 return _fail(conn, aid, p, "send_proposal", S.EMAIL_DOWN)
-            await emailer.send(prm["recipient_email"], f"Proposta — {prm['deal_name']}",
-                                f"Segue em anexo a proposta de {prm['deal_name']}.", attachment=(filename, pdf, "application/pdf"))
+            await emailer.send(prm["recipient_email"], S.PROPOSAL_EMAIL_SUBJECT.format(client=client),
+                                S.PROPOSAL_EMAIL_BODY.format(client=client, valid_until=valid_until(), seller=seller, company=company_name),
+                                attachment=(filename, pdf, "application/pdf"))
             sent.append("e-mail")
         if prm["channel"] in ("whatsapp", "both"):
             with conn.cursor() as cur:
                 cur.execute("select phone_e164 from app.app_user where id=%s", (p.user_id,))
                 phone = cur.fetchone()["phone_e164"]
-            await gateway.send_document(phone, filename, pdf, "application/pdf", caption=f"Proposta: {prm['deal_name']}")
+            await gateway.send_document(phone, filename, pdf, "application/pdf", caption=S.PROPOSAL_WA_CAPTION.format(client=client, ref=ref))
             sent.append("WhatsApp")
     except (EmailError, GatewayError):
         return _fail(conn, aid, p, "send_proposal", S.PROPOSAL_FAILED)
     now = datetime.now(UTC)
     _executed(conn, aid, {"sent_via": sent}, now)
-    audit(conn, p.user_id, "send_proposal", {"action_id": aid, "deal_id": prm["deal_id"], "channel": prm["channel"]})
+    audit(conn, p.user_id, "send_proposal", {"action_id": aid, "deal_id": prm["deal_id"], "channel": prm["channel"], "ref": ref})
     conn.commit()
     return Reply(f"Enviado ✅ *{prm['deal_name']}*: proposta mandada via {' e '.join(sent)}.")
 

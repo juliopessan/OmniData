@@ -77,6 +77,7 @@ class Settings(BaseSettings):
     gmail_refresh_token: str = ""        # obtained once via scripts/gmail_oauth_setup.py
     gmail_app_password: str = ""         # SMTP fallback (used only if the OAuth vars above are empty): Google Account -> Security -> App passwords
     proposal_company_name: str = "OmniData"  # nome que assina o PDF da proposta (Vela) — a empresa do vendedor, não o produto
+    proposal_logo: str = ""                  # caminho de um .svg/.png da SUA marca pro cabeçalho do PDF; vazio = monograma + nome
 
     @property
     def direct_url(self) -> str:

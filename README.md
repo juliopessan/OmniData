@@ -54,7 +54,7 @@ O painel web (`web/`) por padrão mostra dados sintéticos calculados no navegad
 | Upload de datasets (CSV/XLSX de negócios e metas): página, API e CLI | Pronto; testado com uma exportação real do HubSpot (1000 negócios) e no navegador |
 | Airbyte como camada de conectores (HubSpot + outras fontes por mapeamento) | Pronto no código; **nunca rodou contra um Airbyte real** ([docs/airbyte.md](docs/airbyte.md)) |
 | Insights de empresas (dores, termos, ERPs, tipo de demanda), com os agentes; painel `/dashboard/insights` | Pronto; testado com dataset sintético e com um export real do HubSpot |
-| Propostas em PDF por e-mail e WhatsApp (Vela) | Pronto e testado (unitário + e2e contra Postgres real); **`send_document` (WhatsApp) e o SMTP do Gmail em produção ainda não verificados contra uma instância/conta reais** |
+| Propostas em PDF por e-mail e WhatsApp (Vela) | **Em produção**; verificado de ponta a ponta em 25/09/2026 (e-mail real via Gmail API + OAuth2, documento real via Evolution), além de unitários + e2e contra Postgres real |
 | dbt | Não implementado (ADR 0002) |
 
 Veja **[docs/go-live.md](docs/go-live.md)** para o que ainda depende das suas próprias contas (HubSpot, Meta/número de WhatsApp).
