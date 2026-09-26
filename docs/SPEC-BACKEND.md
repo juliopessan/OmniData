@@ -2,6 +2,8 @@
 
 Estado descrito: `main` em `9c502cd` (26/09/2026). Derivada do código, não de intenção: onde o código e um documento
 antigo discordarem, vale o código. Serve de contrato para reaproveitar este backend em outra branch ou produto.
+Complementa [SPEC-FRONTEND.md](SPEC-FRONTEND.md) (painel e site em `web/`).
+Para montar para outro cliente: [REPLICACAO.md](REPLICACAO.md).
 
 Convenções: `FR-*` são os requisitos do PRD citados no código; `ADR nnnn` são as decisões em `docs/adr/`; caminhos são
 relativos a `src/omnidata/` salvo indicação.
@@ -552,6 +554,8 @@ Arquivos de configuração versionados: `config/hubspot_properties.yaml` (propri
 ---
 
 ## 19. Contrato com a web (`web/src/lib/`)
+
+Especificação completa do frontend: [SPEC-FRONTEND.md](SPEC-FRONTEND.md).
 
 Gerados pelo backend, nunca editados à mão:
 
